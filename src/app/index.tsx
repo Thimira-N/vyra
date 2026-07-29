@@ -1,98 +1,89 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+/**
+ * Splash / Redirect — app/index.tsx
+ *
+ * Spec §6.1: Checks for saved JWT → redirect by role.
+ * For Phase F0: always redirects to (auth)/login.
+ * Calls GET /health to verify backend connectivity (DoD #4).
+ */
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
+import api from '@/services/api';
+import { Colors, Typography, Spacing } from '@/constants/theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function SplashRedirectScreen() {
+  useEffect(() => {
+    async function initialize() {
+      // DoD #4: Call GET /health on the real deployed backend and log the response
+      try {
+        const response = await api.get('/health');
+        console.log('[Vyra] ✅ Backend health check successful:', JSON.stringify(response.data));
+      } catch (error: any) {
+        console.error('[Vyra] ❌ Backend health check failed:', error?.message || error);
+      }
+
+      // F0: Always redirect to login (no real auth check yet — that's F1)
+      // Small delay so the splash is visible and health check can complete
+      setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 800);
+    }
+
+    initialize();
+  }, []);
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <View style={styles.screen}>
+      <View style={styles.content}>
+        <Text style={styles.logo}>Vyra</Text>
+        <Text style={styles.subtitle}>Clinical Risk Stratification</Text>
+        <ActivityIndicator
+          size="large"
+          color={Colors.primaryLight}
+          style={styles.spinner}
+        />
+      </View>
+      <Text style={styles.footer}>
+        Multimodal Deep Learning-Based{'\n'}Early Risk Stratification System
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    padding: Spacing.lg,
   },
-  heroSection: {
+  content: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
+  logo: {
+    fontFamily: Typography.bold,
+    fontSize: 48,
+    color: Colors.surface,
+    letterSpacing: 2,
+  },
+  subtitle: {
+    fontFamily: Typography.regular,
+    fontSize: 15,
+    color: Colors.surface + 'CC',
+    marginTop: Spacing.xs,
+  },
+  spinner: {
+    marginTop: Spacing.xl,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: Spacing.xxl + Spacing.md,
+    fontFamily: Typography.regular,
+    fontSize: 12,
+    color: Colors.surface + '80',
     textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+    lineHeight: 18,
   },
 });
