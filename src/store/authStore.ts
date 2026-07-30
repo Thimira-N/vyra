@@ -1,12 +1,13 @@
 /**
  * Auth store — Zustand + expo-secure-store
  *
- * Skeleton for Phase F0. Full auth flow (login/register/consent) wired in F1.
+ * Phase F1: Fully wired auth flow.
  * Field names match the MongoDB `users` collection (Spec §2.1) exactly.
  */
 
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { getMe } from '@/services/authApi';
 
 const SECURE_STORE_TOKEN_KEY = 'auth_token';
 
@@ -21,7 +22,7 @@ export interface User {
   facility_name: string;
   consent_accepted_at: string | null;
   created_at: string;
-  last_login_at: string;
+  last_login_at: string | null;
 }
 
 interface AuthState {
@@ -33,14 +34,21 @@ interface AuthState {
   /** Persist auth credentials after login/register */
   setAuth: (user: User, token: string) => Promise<void>;
 
+  /** Update user object without touching token (e.g. after consent) */
+  setUser: (user: User) => void;
+
   /** Clear credentials on logout or 401 */
   clearAuth: () => Promise<void>;
 
-  /** Restore persisted token on app start (called from splash) */
-  loadToken: () => Promise<string | null>;
+  /**
+   * Restore persisted token on app start.
+   * Calls GET /auth/me to rehydrate the full user profile.
+   * Returns the user if successful, null otherwise.
+   */
+  loadToken: () => Promise<User | null>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
@@ -55,6 +63,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user, token, isAuthenticated: true, isLoading: false });
   },
 
+  setUser: (user: User) => {
+    set({ user });
+  },
+
   clearAuth: async () => {
     try {
       await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
@@ -67,10 +79,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadToken: async () => {
     try {
       const token = await SecureStore.getItemAsync(SECURE_STORE_TOKEN_KEY);
-      set({ token, isAuthenticated: !!token, isLoading: false });
-      return token;
+      if (!token) {
+        set({ token: null, user: null, isAuthenticated: false, isLoading: false });
+        return null;
+      }
+
+      // Token found — set it in state so the API interceptor can use it,
+      // then call GET /auth/me to rehydrate the full user profile
+      set({ token });
+
+      const user = await getMe();
+      set({ user, isAuthenticated: true, isLoading: false });
+      return user;
     } catch {
-      set({ isLoading: false });
+      // Token expired or invalid — clear everything
+      try {
+        await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
+      } catch {
+        // Ignore
+      }
+      set({ token: null, user: null, isAuthenticated: false, isLoading: false });
       return null;
     }
   },

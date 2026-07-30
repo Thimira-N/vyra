@@ -1,19 +1,85 @@
 /**
  * Consent & Disclaimer — Spec §6.1
  *
- * Required first-use screen. Displays what data is collected, how it's used,
- * clinical disclaimer, and data storage notice.
+ * Required first-use screen per Scope §4/§5.1.
+ * Displays: what data is collected, how it's used, clinical disclaimer,
+ * data storage notice.
  *
- * Placeholder for Phase F0. Full scroll-to-accept logic wired in Phase F1.
+ * "A single 'I Understand and Consent' button, disabled until the user
+ *  scrolls to the bottom (onScrollEndDrag check) — this isn't decorative,
+ *  it's a genuine consent-capture pattern for a healthcare tool."
+ *
+ * Calls POST /auth/consent. Cannot be skipped or dismissed without accepting.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Colors, Typography, Spacing } from '@/constants/theme';
 import Button from '@/components/ui/Button';
+import { acceptConsent } from '@/services/authApi';
+import { useAuthStore } from '@/store/authStore';
 
 export default function ConsentScreen() {
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
+
+  const setUser = useAuthStore((s) => s.setUser);
+  const user = useAuthStore((s) => s.user);
+
+  /**
+   * Scroll-to-bottom detection.
+   * Checks if contentOffset.y + layoutHeight >= contentSize.height (within a small threshold).
+   * This is the genuine consent-capture pattern per Spec §6.1.
+   */
+  function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (hasScrolledToBottom) return; // Already enabled, no need to recompute
+
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+    // Enable when within 20px of the bottom
+    if (distanceFromBottom <= 20) {
+      setHasScrolledToBottom(true);
+    }
+  }
+
+  async function handleAccept() {
+    setApiError('');
+    setIsLoading(true);
+
+    try {
+      const updatedUser = await acceptConsent();
+      setUser(updatedUser);
+
+      // Route by role
+      if (updatedUser.role === 'reviewer') {
+        router.replace('/(reviewer)/dashboard');
+      } else {
+        router.replace('/(staff)/home');
+      }
+    } catch (error: any) {
+      if (error?.message?.includes('Network')) {
+        setApiError('Unable to connect to the server. Check your internet connection.');
+      } else {
+        setApiError(
+          error?.response?.data?.detail || 'Failed to record consent. Please try again.',
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -23,7 +89,13 @@ export default function ConsentScreen() {
         </Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={100}
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data Collection</Text>
           <Text style={styles.body}>
@@ -61,17 +133,41 @@ export default function ConsentScreen() {
             authorized staff and reviewers within your organization.
           </Text>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Responsibilities</Text>
+          <Text style={styles.body}>
+            By using this system, you acknowledge that:{'\n\n'}
+            • You are a qualified healthcare professional or authorized reviewer.{'\n'}
+            • You will use AI risk assessments as one input among many, never as a sole basis for clinical decisions.{'\n'}
+            • You will follow all applicable clinical protocols and regulatory requirements.{'\n'}
+            • You will protect patient data and use it only for authorized clinical purposes.
+          </Text>
+        </View>
+
+        {/* Extra space at bottom to ensure user must actually scroll */}
+        <View style={styles.scrollBottomPad} />
       </ScrollView>
 
       <View style={styles.footer}>
+        {apiError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{apiError}</Text>
+          </View>
+        ) : null}
+
         <Button
           title="I Understand and Consent"
-          onPress={() => {}}
-          disabled={true}
+          onPress={handleAccept}
+          disabled={!hasScrolledToBottom || isLoading}
+          loading={isLoading}
         />
-        <Text style={styles.footerNote}>
-          Scroll to bottom to enable
-        </Text>
+
+        {!hasScrolledToBottom && (
+          <Text style={styles.footerNote}>
+            ↓  Scroll to bottom to enable
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -125,6 +221,9 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 21,
   },
+  scrollBottomPad: {
+    height: 24,
+  },
   footer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -138,5 +237,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing.xs,
+  },
+  errorBanner: {
+    backgroundColor: Colors.riskHigh + '12',
+    borderWidth: 1,
+    borderColor: Colors.riskHigh + '30',
+    borderRadius: 10,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  errorBannerText: {
+    fontFamily: Typography.medium,
+    fontSize: 13,
+    color: Colors.riskHigh,
+    lineHeight: 19,
   },
 });
