@@ -102,7 +102,7 @@ export default function RegisterScreen() {
       });
 
       // Auto-login: store JWT + user
-      await setAuth(result.user, result.token);
+      await setAuth(result.user, result.access_token);
 
       // Always route to consent after registration
       router.replace('/(auth)/consent');

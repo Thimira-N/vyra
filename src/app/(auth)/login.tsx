@@ -72,7 +72,7 @@ export default function LoginScreen() {
         password,
       });
 
-      await setAuth(result.user, result.token);
+      await setAuth(result.user, result.access_token);
 
       // Route based on consent and role
       if (!result.user.consent_accepted_at) {
