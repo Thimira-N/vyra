@@ -5,21 +5,17 @@
  * Displays: what data is collected, how it's used, clinical disclaimer,
  * data storage notice.
  *
- * "A single 'I Understand and Consent' button, disabled until the user
- *  scrolls to the bottom (onScrollEndDrag check) — this isn't decorative,
- *  it's a genuine consent-capture pattern for a healthcare tool."
- *
+ * Button is disabled until the user checks the confirmation checkbox.
  * Calls POST /auth/consent. Cannot be skipped or dismissed without accepting.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  type NativeSyntheticEvent,
-  type NativeScrollEvent,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -27,31 +23,15 @@ import { Colors, Typography, Spacing } from '@/constants/theme';
 import Button from '@/components/ui/Button';
 import { acceptConsent } from '@/services/authApi';
 import { useAuthStore } from '@/store/authStore';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ConsentScreen() {
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState('');
 
   const setUser = useAuthStore((s) => s.setUser);
   const user = useAuthStore((s) => s.user);
-
-  /**
-   * Scroll-to-bottom detection.
-   * Checks if contentOffset.y + layoutHeight >= contentSize.height (within a small threshold).
-   * This is the genuine consent-capture pattern per Spec §6.1.
-   */
-  function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    if (hasScrolledToBottom) return; // Already enabled, no need to recompute
-
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-
-    // Enable when within 20px of the bottom
-    if (distanceFromBottom <= 20) {
-      setHasScrolledToBottom(true);
-    }
-  }
 
   async function handleAccept() {
     setApiError('');
@@ -92,8 +72,6 @@ export default function ConsentScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={100}
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.section}>
@@ -144,9 +122,6 @@ export default function ConsentScreen() {
             • You will protect patient data and use it only for authorized clinical purposes.
           </Text>
         </View>
-
-        {/* Extra space at bottom to ensure user must actually scroll */}
-        <View style={styles.scrollBottomPad} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -156,18 +131,25 @@ export default function ConsentScreen() {
           </View>
         ) : null}
 
+        <TouchableOpacity 
+          style={styles.checkboxContainer} 
+          onPress={() => setHasAcceptedTerms(!hasAcceptedTerms)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, hasAcceptedTerms && styles.checkboxChecked]}>
+            {hasAcceptedTerms && <Ionicons name="checkmark" size={16} color={Colors.surface} />}
+          </View>
+          <Text style={styles.checkboxLabel}>
+            I have read and agree to the clinical disclaimer and data policies above.
+          </Text>
+        </TouchableOpacity>
+
         <Button
           title="I Understand and Consent"
           onPress={handleAccept}
-          disabled={!hasScrolledToBottom || isLoading}
+          disabled={!hasAcceptedTerms || isLoading}
           loading={isLoading}
         />
-
-        {!hasScrolledToBottom && (
-          <Text style={styles.footerNote}>
-            ↓  Scroll to bottom to enable
-          </Text>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -221,9 +203,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 21,
   },
-  scrollBottomPad: {
-    height: 24,
-  },
   footer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -231,12 +210,33 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     backgroundColor: Colors.surface,
   },
-  footerNote: {
-    fontFamily: Typography.regular,
-    fontSize: 12,
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingRight: Spacing.md, // ensure text doesn't hit the edge
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontFamily: Typography.medium,
+    fontSize: 13,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
+    lineHeight: 18,
   },
   errorBanner: {
     backgroundColor: Colors.riskHigh + '12',
