@@ -1,27 +1,44 @@
 /**
  * Step 1b: Symptoms — Spec §6.2
- * Large multiline text field for free-text symptom description.
- * Placeholder for Phase F0. Full implementation in Phase F2.
+ *
+ * Large multiline text field for free-text symptom description
+ * (matches /predict-text input). Character counter, placeholder examples.
+ * Stored in draft store on "Next."
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Colors, Typography, Spacing } from '@/constants/theme';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import Button from '@/components/ui/Button';
+import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 const MAX_CHARS = 2000;
 
 export default function SymptomsScreen() {
-  const [text, setText] = useState('');
+  const storedText = useAssessmentDraftStore((s) => s.symptoms_text);
+  const setSymptoms = useAssessmentDraftStore((s) => s.setSymptoms);
+
+  const [text, setText] = useState(storedText);
+  const [error, setError] = useState('');
+
+  function handleNext() {
+    if (!text.trim()) {
+      setError('Please describe the patient\'s symptoms before proceeding.');
+      return;
+    }
+    setSymptoms(text.trim());
+    router.push('/(staff)/new-assessment/image-capture');
+  }
 
   return (
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <ProgressSteps steps={STEPS} currentStep={1} />
 
@@ -34,24 +51,32 @@ export default function SymptomsScreen() {
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.textArea}
+            style={[styles.textArea, error ? styles.textAreaError : null]}
             multiline
             numberOfLines={8}
             placeholder={'e.g. Severe difficulty breathing with onset 6 hours ago.\nConfusion and disorientation noted.\nPatient reports chest tightness and productive cough with yellow-green sputum.\nNo known drug allergies.'}
             placeholderTextColor={Colors.textSecondary}
             value={text}
-            onChangeText={setText}
+            onChangeText={(t) => {
+              setText(t);
+              if (error) setError('');
+            }}
             maxLength={MAX_CHARS}
             textAlignVertical="top"
           />
-          <Text style={styles.charCount}>
-            {text.length} / {MAX_CHARS}
-          </Text>
+          <View style={styles.inputFooter}>
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : (
+              <View />
+            )}
+            <Text style={styles.charCount}>
+              {text.length} / {MAX_CHARS}
+            </Text>
+          </View>
         </View>
 
-        <Link href="/(staff)/new-assessment/image-capture" asChild>
-          <Button title="Next: Image Capture →" onPress={() => {}} />
-        </Link>
+        <Button title="Next: Image Capture →" onPress={handleNext} />
       </View>
     </ScrollView>
   );
@@ -97,12 +122,24 @@ const styles = StyleSheet.create({
     minHeight: 180,
     lineHeight: 22,
   },
+  textAreaError: {
+    borderColor: Colors.riskHigh,
+  },
+  inputFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.xxs,
+  },
   charCount: {
     fontFamily: Typography.regular,
     fontSize: 12,
     color: Colors.textSecondary,
-    textAlign: 'right',
-    marginTop: Spacing.xxs,
     fontVariant: ['tabular-nums'],
+  },
+  errorText: {
+    fontFamily: Typography.medium,
+    fontSize: 12,
+    color: Colors.riskHigh,
   },
 });

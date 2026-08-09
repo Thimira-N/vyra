@@ -1,19 +1,49 @@
 /**
  * Step 4: Review & Submit — Spec §6.2
- * Read-only summary of all data entered in steps 1-3 with edit links.
- * Placeholder for Phase F0. Full implementation in Phase F2.
+ *
+ * Read-only summary of everything entered across steps 1–3 with
+ * per-section "Edit" links (jumps back). Final "Submit for Analysis"
+ * button. Navigates to analyzing screen which calls POST /assessments.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Link } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { router, Link } from 'expo-router';
 import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import Button from '@/components/ui/Button';
+import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
+/** Format vital signs for display */
+function formatVitals(vitals: Record<string, number>): string {
+  const labels: Record<string, string> = {
+    HR: 'Heart Rate',
+    O2Sat: 'SpO₂',
+    Temp: 'Temperature',
+    SBP: 'Systolic BP',
+    DBP: 'Diastolic BP',
+    Resp: 'Resp Rate',
+    MAP: 'MAP',
+    Age: 'Age',
+  };
+
+  return Object.entries(vitals)
+    .map(([key, val]) => `${labels[key] || key}: ${val}`)
+    .join('\n');
+}
+
 export default function ReviewSubmitScreen() {
+  const patient = useAssessmentDraftStore((s) => s.patient);
+  const symptoms_text = useAssessmentDraftStore((s) => s.symptoms_text);
+  const imageUri = useAssessmentDraftStore((s) => s.imageUri);
+  const vitals = useAssessmentDraftStore((s) => s.vitals);
+
+  function handleSubmit() {
+    router.push('/(staff)/new-assessment/analyzing');
+  }
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -29,29 +59,55 @@ export default function ReviewSubmitScreen() {
         </Text>
 
         {/* Patient summary */}
-        <SummarySection title="Patient Info" editHref="/(staff)/new-assessment/patient-info">
-          <Text style={styles.summaryText}>Patient data will appear here</Text>
+        <SummarySection title="Patient Info" editRoute="/(staff)/new-assessment/patient-info">
+          {patient ? (
+            <>
+              <Text style={styles.summaryText}>{patient.full_name}</Text>
+              <Text style={styles.summaryMeta}>
+                {patient.patient_ref} · {patient.sex} · Age {patient.age}
+                {patient.phone ? ` · ${patient.phone}` : ''}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.missingText}>No patient selected</Text>
+          )}
         </SummarySection>
 
         {/* Symptoms summary */}
-        <SummarySection title="Symptoms" editHref="/(staff)/new-assessment/symptoms">
-          <Text style={styles.summaryText}>Symptom description will appear here</Text>
+        <SummarySection title="Symptoms" editRoute="/(staff)/new-assessment/symptoms">
+          {symptoms_text ? (
+            <Text style={styles.summaryText} numberOfLines={5}>
+              {symptoms_text}
+            </Text>
+          ) : (
+            <Text style={styles.missingText}>No symptoms entered</Text>
+          )}
         </SummarySection>
 
         {/* Image summary */}
-        <SummarySection title="Clinical Image" editHref="/(staff)/new-assessment/image-capture">
-          <Text style={styles.summaryText}>No image selected (optional)</Text>
+        <SummarySection title="Clinical Image" editRoute="/(staff)/new-assessment/image-capture">
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.imageThumbnail} resizeMode="cover" />
+          ) : (
+            <Text style={styles.summaryMeta}>No image (optional — will use partial-modality analysis)</Text>
+          )}
         </SummarySection>
 
         {/* Vitals summary */}
-        <SummarySection title="Vital Signs" editHref="/(staff)/new-assessment/vitals">
-          <Text style={styles.summaryText}>Vitals data will appear here</Text>
+        <SummarySection title="Vital Signs" editRoute="/(staff)/new-assessment/vitals">
+          {Object.keys(vitals).length > 0 ? (
+            <Text style={styles.summaryText}>{formatVitals(vitals)}</Text>
+          ) : (
+            <Text style={styles.missingText}>No vitals entered</Text>
+          )}
         </SummarySection>
 
         {/* Submit */}
-        <Link href="/(staff)/new-assessment/analyzing" asChild>
-          <Button title="Submit for Analysis" onPress={() => {}} />
-        </Link>
+        <Button
+          title="Submit for Analysis"
+          onPress={handleSubmit}
+          disabled={!patient || !symptoms_text}
+        />
       </View>
     </ScrollView>
   );
@@ -59,18 +115,18 @@ export default function ReviewSubmitScreen() {
 
 function SummarySection({
   title,
-  editHref,
+  editRoute,
   children,
 }: {
   title: string;
-  editHref: string;
+  editRoute: string;
   children: React.ReactNode;
 }) {
   return (
     <View style={[summaryStyles.card, Shadows.card]}>
       <View style={summaryStyles.header}>
         <Text style={summaryStyles.title}>{title}</Text>
-        <Link href={editHref as any} style={summaryStyles.editLink}>
+        <Link href={editRoute as any} style={summaryStyles.editLink}>
           Edit
         </Link>
       </View>
@@ -106,8 +162,26 @@ const styles = StyleSheet.create({
   summaryText: {
     fontFamily: Typography.regular,
     fontSize: 14,
+    color: Colors.textPrimary,
+    lineHeight: 21,
+  },
+  summaryMeta: {
+    fontFamily: Typography.regular,
+    fontSize: 13,
     color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  missingText: {
+    fontFamily: Typography.regular,
+    fontSize: 14,
+    color: Colors.riskMedium,
     fontStyle: 'italic',
+  },
+  imageThumbnail: {
+    width: '100%',
+    height: 160,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
   },
 });
 

@@ -1,18 +1,104 @@
 /**
  * Result — Spec §6.2
- * The most important screen in the app. Shows risk badge, probability bar,
- * per-modality findings, differential summary, disclaimer, and actions.
- * Placeholder for Phase F0. Real data rendering in Phase F2.
+ *
+ * The most important screen in the app. Renders the REAL assessment result:
+ *   - Large risk badge (overall_risk) with triage tier + confidence
+ *   - RiskProbabilityBar (risk_probabilities)
+ *   - Per-modality sections: Image Finding, Symptom Match, Vitals Flags
+ *   - Differential Summary card with consistency_note
+ *   - Grad-CAM overlay if available
+ *   - Standing disclaimer (always visible, never collapsible)
+ *   - "Generate PDF Report" and "Done" actions
+ *
+ * Field names match Spec §2.3 assessment document exactly.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { router } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Linking,
+  Alert,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Colors, Typography, Spacing, Shadows, getRiskColor, type RiskLevel } from '@/constants/theme';
 import RiskBadge from '@/components/ui/RiskBadge';
+import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import Button from '@/components/ui/Button';
+import { getAssessmentReportUrl, type AssessmentOut } from '@/services/assessmentsApi';
+import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ResultScreen() {
+  const params = useLocalSearchParams<{ assessmentData?: string }>();
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    image: true,
+    text: true,
+    vitals: true,
+  });
+
+  const reset = useAssessmentDraftStore((s) => s.reset);
+
+  // Parse the assessment data from params
+  let assessment: AssessmentOut | null = null;
+  try {
+    if (params.assessmentData) {
+      assessment = JSON.parse(params.assessmentData);
+    }
+  } catch {
+    // Invalid data
+  }
+
+  if (!assessment) {
+    return (
+      <View style={styles.errorScreen}>
+        <Text style={styles.errorTitle}>No Assessment Data</Text>
+        <Text style={styles.errorSubtitle}>
+          Unable to load assessment results. Please try submitting again.
+        </Text>
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
+          variant="outline"
+        />
+      </View>
+    );
+  }
+
+  const { result } = assessment;
+  const riskColor = getRiskColor(result.overall_risk as RiskLevel);
+
+  function toggleSection(key: string) {
+    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  async function handleGeneratePDF() {
+    setPdfLoading(true);
+    try {
+      const url = await getAssessmentReportUrl(assessment!._id);
+      await Linking.openURL(url);
+    } catch (error: any) {
+      Alert.alert(
+        'PDF Report',
+        error?.response?.data?.detail || 'Unable to generate the PDF report. Please try again.',
+      );
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  function handleDone() {
+    reset();
+    router.replace('/(staff)/home');
+  }
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -21,68 +107,125 @@ export default function ResultScreen() {
     >
       {/* Risk header */}
       <View style={styles.riskHeader}>
-        <RiskBadge level="High" size="large" />
-        <Text style={styles.triageTier}>IMMEDIATE — Triage Tier</Text>
-        <Text style={styles.confidence}>Confidence: —%</Text>
+        <RiskBadge level={result.overall_risk as RiskLevel} size="large" />
+        <Text style={[styles.triageTier, { color: riskColor }]}>
+          {result.triage_tier} — Triage Tier
+        </Text>
+        <Text style={styles.confidence}>
+          Confidence: {result.confidence_pct.toFixed(1)}% · {result.fusion_method}
+        </Text>
       </View>
 
-      {/* Risk probability bar placeholder */}
+      {/* Risk probability bar */}
       <View style={[styles.card, Shadows.card]}>
         <Text style={styles.cardTitle}>Risk Probability Distribution</Text>
-        <View style={styles.probBar}>
-          <View style={[styles.probSegment, { flex: 8, backgroundColor: Colors.riskLow }]}>
-            <Text style={styles.probLabel}>Low</Text>
-          </View>
-          <View style={[styles.probSegment, { flex: 21, backgroundColor: Colors.riskMedium }]}>
-            <Text style={styles.probLabel}>Med</Text>
-          </View>
-          <View style={[styles.probSegment, { flex: 71, backgroundColor: Colors.riskHigh }]}>
-            <Text style={styles.probLabel}>High</Text>
-          </View>
-        </View>
-        <View style={styles.probLegend}>
-          <Text style={[styles.probValue, { color: Colors.riskLow }]}>Low: —%</Text>
-          <Text style={[styles.probValue, { color: Colors.riskMedium }]}>Med: —%</Text>
-          <Text style={[styles.probValue, { color: Colors.riskHigh }]}>High: —%</Text>
-        </View>
+        <RiskProbabilityBar probabilities={result.risk_probabilities} />
       </View>
 
       {/* Per-modality findings */}
-      <View style={[styles.card, Shadows.card]}>
-        <Text style={styles.cardTitle}>Image Finding</Text>
-        <View style={styles.modalityRow}>
-          <RiskBadge level="High" size="small" />
-          <Text style={styles.modalityDetail}>Confidence: —%</Text>
-        </View>
-        <Text style={styles.modalityText}>Modality result will appear here</Text>
-      </View>
+      {result.per_modality.image && (
+        <CollapsibleSection
+          title="Image Finding"
+          expanded={expandedSections.image}
+          onToggle={() => toggleSection('image')}
+        >
+          <View style={styles.modalityRow}>
+            <RiskBadge level={result.per_modality.image.risk as RiskLevel} size="small" />
+            <Text style={styles.modalityDetail}>
+              Confidence: {result.per_modality.image.confidence_pct.toFixed(1)}%
+            </Text>
+          </View>
+          <Text style={styles.modalityText}>{result.per_modality.image.finding}</Text>
+        </CollapsibleSection>
+      )}
 
-      <View style={[styles.card, Shadows.card]}>
-        <Text style={styles.cardTitle}>Symptom Match</Text>
-        <View style={styles.modalityRow}>
-          <RiskBadge level="Medium" size="small" />
-          <Text style={styles.modalityDetail}>Confidence: —%</Text>
-        </View>
-        <Text style={styles.modalityText}>Symptom analysis will appear here</Text>
-      </View>
+      {result.per_modality.text && (
+        <CollapsibleSection
+          title="Symptom Match"
+          expanded={expandedSections.text}
+          onToggle={() => toggleSection('text')}
+        >
+          <View style={styles.modalityRow}>
+            <RiskBadge level={result.per_modality.text.risk as RiskLevel} size="small" />
+            <Text style={styles.modalityDetail}>
+              Confidence: {result.per_modality.text.confidence_pct.toFixed(1)}%
+            </Text>
+          </View>
+          <Text style={styles.modalityText}>
+            Matched condition: {result.per_modality.text.match}
+          </Text>
+        </CollapsibleSection>
+      )}
 
-      <View style={[styles.card, Shadows.card]}>
-        <Text style={styles.cardTitle}>Vitals Flags</Text>
-        <View style={styles.modalityRow}>
-          <RiskBadge level="Low" size="small" />
-          <Text style={styles.modalityDetail}>Flags: —</Text>
-        </View>
-        <Text style={styles.modalityText}>Vitals analysis will appear here</Text>
-      </View>
+      {result.per_modality.vitals && (
+        <CollapsibleSection
+          title="Vitals Flags"
+          expanded={expandedSections.vitals}
+          onToggle={() => toggleSection('vitals')}
+        >
+          <View style={styles.modalityRow}>
+            <RiskBadge level={result.per_modality.vitals.risk as RiskLevel} size="small" />
+            <Text style={styles.modalityDetail}>
+              Flags: {result.per_modality.vitals.flags}
+            </Text>
+          </View>
+          {result.per_modality.vitals.flagged_vitals?.length > 0 && (
+            <View style={styles.flagList}>
+              {result.per_modality.vitals.flagged_vitals.map((fv, i) => (
+                <View key={i} style={styles.flagRow}>
+                  <Text style={styles.flagLabel}>{fv.label || fv.vital}:</Text>
+                  <Text style={styles.flagValue}>
+                    {fv.value} ({fv.severity})
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </CollapsibleSection>
+      )}
 
       {/* Differential Summary */}
       <View style={[styles.differentialCard, Shadows.card]}>
         <Text style={styles.differentialTitle}>Differential Summary</Text>
-        <Text style={styles.differentialText}>
-          The consistency note and differential summary will appear here,
-          combining findings across all modalities.
-        </Text>
+        {result.differential_summary.image_finding && (
+          <View style={styles.diffRow}>
+            <Text style={styles.diffLabel}>Image:</Text>
+            <Text style={styles.diffValue}>{result.differential_summary.image_finding}</Text>
+          </View>
+        )}
+        {result.differential_summary.symptom_match && (
+          <View style={styles.diffRow}>
+            <Text style={styles.diffLabel}>Symptoms:</Text>
+            <Text style={styles.diffValue}>{result.differential_summary.symptom_match}</Text>
+          </View>
+        )}
+        {result.differential_summary.vitals_pattern && (
+          <View style={styles.diffRow}>
+            <Text style={styles.diffLabel}>Vitals:</Text>
+            <Text style={styles.diffValue}>{result.differential_summary.vitals_pattern}</Text>
+          </View>
+        )}
+        {result.differential_summary.consistency_note && (
+          <View style={styles.consistencyCard}>
+            <Text style={styles.consistencyLabel}>Consistency Note</Text>
+            <Text style={styles.consistencyText}>
+              {result.differential_summary.consistency_note}
+            </Text>
+          </View>
+        )}
       </View>
+
+      {/* Grad-CAM overlay if available */}
+      {result.gradcam_overlay_url && (
+        <View style={[styles.card, Shadows.card]}>
+          <Text style={styles.cardTitle}>Grad-CAM Visualization</Text>
+          <Image
+            source={{ uri: result.gradcam_overlay_url }}
+            style={styles.gradcamImage}
+            resizeMode="contain"
+          />
+        </View>
+      )}
 
       {/* Disclaimer — always visible, never collapsible (Spec §6.2) */}
       <View style={styles.disclaimer}>
@@ -97,10 +240,16 @@ export default function ResultScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <Button title="Generate PDF Report" onPress={() => {}} variant="outline" />
+        <Button
+          title="Generate PDF Report"
+          onPress={handleGeneratePDF}
+          variant="outline"
+          loading={pdfLoading}
+          disabled={pdfLoading}
+        />
         <Button
           title="Done"
-          onPress={() => router.replace('/(staff)/home')}
+          onPress={handleDone}
           variant="primary"
         />
       </View>
@@ -108,145 +257,184 @@ export default function ResultScreen() {
   );
 }
 
+/** Collapsible section component for per-modality findings */
+function CollapsibleSection({
+  title,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[collStyles.card, Shadows.card]}>
+      <TouchableOpacity
+        style={collStyles.header}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <Text style={collStyles.title}>{title}</Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={Colors.textSecondary}
+        />
+      </TouchableOpacity>
+      {expanded && <View style={collStyles.content}>{children}</View>}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: Colors.background,
+  scroll: { flex: 1, backgroundColor: Colors.background },
+  container: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
+
+  // Error state
+  errorScreen: {
+    flex: 1, backgroundColor: Colors.background,
+    justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
-  container: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+  errorTitle: {
+    fontFamily: Typography.bold, fontSize: 20,
+    color: Colors.textPrimary, marginBottom: Spacing.xs,
+  },
+  errorSubtitle: {
+    fontFamily: Typography.regular, fontSize: 14,
+    color: Colors.textSecondary, textAlign: 'center',
+    marginBottom: Spacing.lg, lineHeight: 21,
   },
 
   // Risk header
   riskHeader: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    marginBottom: Spacing.md,
+    alignItems: 'center', paddingVertical: Spacing.lg, marginBottom: Spacing.md,
   },
   triageTier: {
-    fontFamily: Typography.semiBold,
-    fontSize: 14,
-    color: Colors.riskHigh,
-    marginTop: Spacing.sm,
-    letterSpacing: 1,
+    fontFamily: Typography.semiBold, fontSize: 14,
+    marginTop: Spacing.sm, letterSpacing: 1,
   },
   confidence: {
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xxs,
+    fontFamily: Typography.regular, fontSize: 13,
+    color: Colors.textSecondary, marginTop: Spacing.xxs,
   },
 
   // Cards
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border,
+    padding: Spacing.md, marginBottom: Spacing.sm,
   },
   cardTitle: {
-    fontFamily: Typography.semiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-
-  // Probability bar
-  probBar: {
-    flexDirection: 'row',
-    height: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: Spacing.xs,
-  },
-  probSegment: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  probLabel: {
-    fontFamily: Typography.semiBold,
-    fontSize: 10,
-    color: Colors.surface,
-  },
-  probLegend: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  probValue: {
-    fontFamily: Typography.medium,
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
+    fontFamily: Typography.semiBold, fontSize: 15,
+    color: Colors.textPrimary, marginBottom: Spacing.xs,
   },
 
   // Modality sections
   modalityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
+    flexDirection: 'row', alignItems: 'center',
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   modalityDetail: {
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontVariant: ['tabular-nums'],
+    fontFamily: Typography.regular, fontSize: 13,
+    color: Colors.textSecondary, fontVariant: ['tabular-nums'],
   },
   modalityText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
+    fontFamily: Typography.regular, fontSize: 14,
+    color: Colors.textPrimary, lineHeight: 21,
+  },
+  flagList: { marginTop: Spacing.xs },
+  flagRow: {
+    flexDirection: 'row', gap: Spacing.xs,
+    paddingVertical: 2,
+  },
+  flagLabel: {
+    fontFamily: Typography.medium, fontSize: 13, color: Colors.textPrimary,
+  },
+  flagValue: {
+    fontFamily: Typography.regular, fontSize: 13,
+    color: Colors.textSecondary, flex: 1,
   },
 
   // Differential summary
   differentialCard: {
-    backgroundColor: Colors.primary + '08',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.primary + '08', borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.primary + '20',
+    padding: Spacing.md, marginBottom: Spacing.md,
   },
   differentialTitle: {
-    fontFamily: Typography.semiBold,
-    fontSize: 15,
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
+    fontFamily: Typography.semiBold, fontSize: 15,
+    color: Colors.primary, marginBottom: Spacing.sm,
   },
-  differentialText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 21,
+  diffRow: {
+    flexDirection: 'row', marginBottom: Spacing.xs, gap: Spacing.xs,
+  },
+  diffLabel: {
+    fontFamily: Typography.semiBold, fontSize: 13,
+    color: Colors.textPrimary, width: 70,
+  },
+  diffValue: {
+    fontFamily: Typography.regular, fontSize: 13,
+    color: Colors.textPrimary, flex: 1, lineHeight: 19,
+  },
+  consistencyCard: {
+    backgroundColor: Colors.primary + '0C', borderRadius: 8,
+    padding: Spacing.sm, marginTop: Spacing.xs,
+  },
+  consistencyLabel: {
+    fontFamily: Typography.semiBold, fontSize: 12,
+    color: Colors.primary, marginBottom: Spacing.xxs,
+    letterSpacing: 0.5,
+  },
+  consistencyText: {
+    fontFamily: Typography.medium, fontSize: 14,
+    color: Colors.textPrimary, lineHeight: 21,
+  },
+
+  // Grad-CAM
+  gradcamImage: {
+    width: '100%', height: 220, borderRadius: 8,
+    backgroundColor: Colors.border,
   },
 
   // Disclaimer — pinned, always visible, never collapsible
   disclaimer: {
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.riskMedium + '40',
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
+    backgroundColor: Colors.surface, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.riskMedium + '40',
+    padding: Spacing.md, marginBottom: Spacing.lg,
   },
   disclaimerTitle: {
-    fontFamily: Typography.semiBold,
-    fontSize: 13,
-    color: Colors.riskMedium,
-    marginBottom: Spacing.xxs,
+    fontFamily: Typography.semiBold, fontSize: 13,
+    color: Colors.riskMedium, marginBottom: Spacing.xxs,
   },
   disclaimerText: {
-    fontFamily: Typography.regular,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 18,
+    fontFamily: Typography.regular, fontSize: 12,
+    color: Colors.textSecondary, lineHeight: 18,
   },
 
   // Actions
-  actions: {
-    gap: Spacing.sm,
+  actions: { gap: Spacing.sm },
+});
+
+const collStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border,
+    marginBottom: Spacing.sm, overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', padding: Spacing.md,
+  },
+  title: {
+    fontFamily: Typography.semiBold, fontSize: 15, color: Colors.textPrimary,
+  },
+  content: {
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
   },
 });
