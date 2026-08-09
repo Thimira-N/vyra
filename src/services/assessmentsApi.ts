@@ -161,3 +161,19 @@ export async function getAssessmentReportUrl(assessmentId: string): Promise<stri
   // On web/native the redirect URL might be in different places
   return request.responseURL || request._url || `${api.defaults.baseURL}/assessments/${assessmentId}/report`;
 }
+
+/**
+ * GET /assessments/mine — list assessments created by the logged-in staff
+ */
+export async function getMyAssessments(): Promise<AssessmentOut[]> {
+  const { data } = await api.get<AssessmentOut[]>('/assessments/mine');
+  return data;
+}
+
+/**
+ * GET /assessments/{id} — fetch one assessment by ID
+ */
+export async function getAssessmentById(id: string): Promise<AssessmentOut> {
+  const { data } = await api.get<AssessmentOut>(`/assessments/${id}`);
+  return data;
+}

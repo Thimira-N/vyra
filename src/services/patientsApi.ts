@@ -51,3 +51,9 @@ export async function searchPatients(query: string): Promise<PatientOut[]> {
   });
   return data;
 }
+
+/** GET /patients/{id} — fetch one patient by ID */
+export async function getPatientById(id: string): Promise<PatientOut> {
+  const { data } = await api.get<PatientOut>(`/patients/${id}`);
+  return data;
+}
