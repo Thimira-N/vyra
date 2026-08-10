@@ -27,6 +27,7 @@ import { WebView } from 'react-native-webview';
 import { File, Directory, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '@/constants/theme';
 
@@ -38,7 +39,7 @@ export default function PdfViewerScreen() {
   const [localFile, setLocalFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'download' | 'print' | null>(null);
+  const [busy, setBusy] = useState<'download' | 'print' | 'share' | null>(null);
 
   const displayTitle = title || 'Clinical Report';
 
@@ -67,30 +68,48 @@ export default function PdfViewerScreen() {
     fetchPdf();
   }, [fetchPdf]);
 
-  // Download: on Android, let the user pick a real folder (e.g. Downloads) via
-  // the directory picker so the file actually lands on the device the way a
-  // "download" is expected to. On iOS, there is no public Downloads folder —
-  // the share sheet's "Save to Files" is the native equivalent, so we route
-  // through Sharing there (and as an Android fallback if the picker is denied).
+  // Download: uses Directory picker on Android to save directly to a chosen folder.
+  // Persists the chosen directory URI to SecureStore so subsequent downloads 
+  // are automatic (no picker) until the user revokes the permission.
   async function handleDownload() {
     if (!localFile) return;
     setBusy('download');
     try {
       if (Platform.OS === 'android') {
-        try {
-          const dir = await Directory.pickDirectoryAsync();
-          const safeName = String(displayTitle).replace(/[^a-z0-9\-_]+/gi, '_') + '.pdf';
-          const destFile = new File(dir, safeName);
-          await localFile.copy(destFile, { overwrite: true });
-          Alert.alert('Saved', 'The report was saved to the selected folder.');
-        } catch {
-          // User cancelled the picker or SAF was denied — fall back to share sheet.
-          await Sharing.shareAsync(localFile.uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: 'Save report',
-          });
+        const safeName = String(displayTitle).replace(/[^a-z0-9\-_]+/gi, '_') + '.pdf';
+        const savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
+        let dir: Directory | null = null;
+        
+        // Try to use the previously saved directory
+        if (savedUri) {
+          try {
+            dir = new Directory(savedUri);
+            const destFile = new File(dir, safeName);
+            await localFile.copy(destFile, { overwrite: true });
+            Alert.alert('Saved', 'The report was saved to your previously selected folder.');
+            return;
+          } catch (e) {
+            // Permission might have been revoked or folder deleted, fall back to picker
+            dir = null;
+          }
+        }
+        
+        // No saved dir or it failed - ask user to pick a folder
+        if (!dir) {
+          try {
+            dir = await Directory.pickDirectoryAsync();
+            await SecureStore.setItemAsync('downloads_dir_uri', dir.uri);
+            const destFile = new File(dir, safeName);
+            await localFile.copy(destFile, { overwrite: true });
+            Alert.alert('Saved', 'The report was saved to the selected folder.');
+          } catch (e) {
+            // Picker cancelled or failed
+            console.log('Download picker error:', e);
+            Alert.alert('Download failed', 'Unable to save the report.');
+          }
         }
       } else {
+        // iOS doesn't persist directory permissions easily without bookmarks, just use Share
         await Sharing.shareAsync(localFile.uri, {
           mimeType: 'application/pdf',
           dialogTitle: 'Save report',
@@ -98,7 +117,27 @@ export default function PdfViewerScreen() {
         });
       }
     } catch (e) {
-      Alert.alert('Download failed', 'Unable to save the report. Please try again.');
+      console.log('Download error:', e);
+      Alert.alert('Download failed', 'Unable to save the report.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Share: Because iOS and modern Android heavily restrict silent downloads to public folders,
+  // the standard mobile paradigm is to use the native Share sheet. This allows the user to
+  // send the PDF via WhatsApp, Email, or use "Save to Files" / "Save to Downloads".
+  async function handleShare() {
+    if (!localFile) return;
+    setBusy('share');
+    try {
+      await Sharing.shareAsync(localFile.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Share or Save Report',
+        UTI: 'com.adobe.pdf',
+      });
+    } catch (e) {
+      Alert.alert('Share failed', 'Unable to share the report. Please try again.');
     } finally {
       setBusy(null);
     }
@@ -168,6 +207,22 @@ export default function PdfViewerScreen() {
             ) : (
               <Ionicons
                 name="download-outline"
+                size={22}
+                color={!localFile ? Colors.border : Colors.surface}
+              />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleShare}
+            style={styles.headerBtn}
+            disabled={!localFile || !!busy}
+            hitSlop={12}
+          >
+            {busy === 'share' ? (
+              <ActivityIndicator color={Colors.surface} size="small" />
+            ) : (
+              <Ionicons
+                name="share-outline"
                 size={22}
                 color={!localFile ? Colors.border : Colors.surface}
               />

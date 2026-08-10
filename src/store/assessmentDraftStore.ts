@@ -29,7 +29,7 @@ interface AssessmentDraftState {
   assessmentId: string | null;
 
   // Actions
-  setPatient: (patient: PatientOut) => void;
+  setPatient: (patient: PatientOut | null) => void;
   setSymptoms: (text: string) => void;
   setImage: (uri: string | null) => void;
   setVitals: (vitals: Record<string, number>) => void;
@@ -49,8 +49,8 @@ const initialState = {
 export const useAssessmentDraftStore = create<AssessmentDraftState>((set) => ({
   ...initialState,
 
-  setPatient: (patient: PatientOut) =>
-    set({ patient_id: patient._id, patient }),
+  setPatient: (patient: PatientOut | null) =>
+    set({ patient_id: patient ? patient._id : null, patient }),
 
   setSymptoms: (text: string) =>
     set({ symptoms_text: text }),

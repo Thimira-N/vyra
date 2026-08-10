@@ -143,7 +143,7 @@ export default function PatientInfoScreen() {
               </Text>
             </View>
             <TouchableOpacity 
-              onPress={() => setPatient(null as any)} 
+              onPress={() => setPatient(null)} 
               activeOpacity={0.7}
               style={styles.changeLinkContainer}
             >
