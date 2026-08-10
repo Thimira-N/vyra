@@ -29,15 +29,13 @@ import { Colors, Typography, Spacing, Shadows, getRiskColor, type RiskLevel } fr
 import RiskBadge from '@/components/ui/RiskBadge';
 import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import Button from '@/components/ui/Button';
-import { getAssessmentReportUrl, type AssessmentOut } from '@/services/assessmentsApi';
+import ReportViewerButton from '@/components/ui/ReportViewerButton';
+import { type AssessmentOut } from '@/services/assessmentsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ResultScreen() {
   const params = useLocalSearchParams<{ assessmentData?: string }>();
-  const [pdfLoading, setPdfLoading] = useState(false);
-
-  // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     image: true,
     text: true,
@@ -77,21 +75,6 @@ export default function ResultScreen() {
 
   function toggleSection(key: string) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
-
-  async function handleGeneratePDF() {
-    setPdfLoading(true);
-    try {
-      const url = await getAssessmentReportUrl(assessment!._id);
-      await Linking.openURL(url);
-    } catch (error: any) {
-      Alert.alert(
-        'PDF Report',
-        error?.response?.data?.detail || 'Unable to generate the PDF report. Please try again.',
-      );
-    } finally {
-      setPdfLoading(false);
-    }
   }
 
   function handleDone() {
@@ -240,13 +223,7 @@ export default function ResultScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <Button
-          title="Generate PDF Report"
-          onPress={handleGeneratePDF}
-          variant="outline"
-          loading={pdfLoading}
-          disabled={pdfLoading}
-        />
+        <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
         <Button
           title="Done"
           onPress={handleDone}

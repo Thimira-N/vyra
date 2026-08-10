@@ -25,7 +25,8 @@ import { Colors, Typography, Spacing, Shadows, getRiskColor, type RiskLevel } fr
 import RiskBadge from '@/components/ui/RiskBadge';
 import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import Button from '@/components/ui/Button';
-import { getAssessmentById, getAssessmentReportUrl, type AssessmentOut } from '@/services/assessmentsApi';
+import ReportViewerButton from '@/components/ui/ReportViewerButton';
+import { getAssessmentById, type AssessmentOut } from '@/services/assessmentsApi';
 import { submitReview } from '@/services/reviewerApi';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -35,7 +36,6 @@ export default function CaseDetailScreen() {
   const [assessment, setAssessment] = useState<AssessmentOut | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pdfLoading, setPdfLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Review Form State
@@ -70,22 +70,6 @@ export default function CaseDetailScreen() {
 
   function toggleSection(key: string) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
-
-  async function handleGeneratePDF() {
-    if (!assessment) return;
-    setPdfLoading(true);
-    try {
-      const url = await getAssessmentReportUrl(assessment._id);
-      await Linking.openURL(url);
-    } catch (err: any) {
-      Alert.alert(
-        'PDF Report',
-        err?.response?.data?.detail || 'Unable to generate the PDF report. Please try again.'
-      );
-    } finally {
-      setPdfLoading(false);
-    }
   }
 
   async function handleMarkAsReviewed() {
@@ -369,14 +353,7 @@ export default function CaseDetailScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         {status === 'reviewed' && (
-          <Button
-            title="Generate PDF Report"
-            onPress={handleGeneratePDF}
-            variant="outline"
-            loading={pdfLoading}
-            disabled={pdfLoading}
-            style={{ marginBottom: Spacing.sm }}
-          />
+          <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
         )}
         <Button
           title="Back to Dashboard"

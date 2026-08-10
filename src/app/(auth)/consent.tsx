@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Typography, Spacing } from '@/constants/theme';
 import Button from '@/components/ui/Button';
 import { acceptConsent } from '@/services/authApi';
@@ -26,6 +26,9 @@ import { useAuthStore } from '@/store/authStore';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ConsentScreen() {
+  const { viewOnly } = useLocalSearchParams<{ viewOnly?: string }>();
+  const isViewOnly = viewOnly === 'true';
+
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState('');
@@ -131,25 +134,34 @@ export default function ConsentScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity 
-          style={styles.checkboxContainer} 
-          onPress={() => setHasAcceptedTerms(!hasAcceptedTerms)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, hasAcceptedTerms && styles.checkboxChecked]}>
-            {hasAcceptedTerms && <Ionicons name="checkmark" size={16} color={Colors.surface} />}
-          </View>
-          <Text style={styles.checkboxLabel}>
-            I have read and agree to the clinical disclaimer and data policies above.
-          </Text>
-        </TouchableOpacity>
+        {isViewOnly ? (
+          <Button
+            title="Go Back"
+            onPress={() => router.back()}
+          />
+        ) : (
+          <>
+            <TouchableOpacity 
+              style={styles.checkboxContainer} 
+              onPress={() => setHasAcceptedTerms(!hasAcceptedTerms)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, hasAcceptedTerms && styles.checkboxChecked]}>
+                {hasAcceptedTerms && <Ionicons name="checkmark" size={16} color={Colors.surface} />}
+              </View>
+              <Text style={styles.checkboxLabel}>
+                I have read and agree to the clinical disclaimer and data policies above.
+              </Text>
+            </TouchableOpacity>
 
-        <Button
-          title="I Understand and Consent"
-          onPress={handleAccept}
-          disabled={!hasAcceptedTerms || isLoading}
-          loading={isLoading}
-        />
+            <Button
+              title="I Understand and Consent"
+              onPress={handleAccept}
+              disabled={!hasAcceptedTerms || isLoading}
+              loading={isLoading}
+            />
+          </>
+        )}
       </View>
     </SafeAreaView>
   );

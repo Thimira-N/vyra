@@ -24,7 +24,8 @@ import { Colors, Typography, Spacing, Shadows, getRiskColor, type RiskLevel } fr
 import RiskBadge from '@/components/ui/RiskBadge';
 import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import Button from '@/components/ui/Button';
-import { getAssessmentById, getAssessmentReportUrl, type AssessmentOut } from '@/services/assessmentsApi';
+import ReportViewerButton from '@/components/ui/ReportViewerButton';
+import { getAssessmentById, type AssessmentOut } from '@/services/assessmentsApi';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function HistoryDetailScreen() {
@@ -33,7 +34,6 @@ export default function HistoryDetailScreen() {
   const [assessment, setAssessment] = useState<AssessmentOut | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -63,22 +63,6 @@ export default function HistoryDetailScreen() {
 
   function toggleSection(key: string) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
-
-  async function handleGeneratePDF() {
-    if (!assessment) return;
-    setPdfLoading(true);
-    try {
-      const url = await getAssessmentReportUrl(assessment._id);
-      await Linking.openURL(url);
-    } catch (err: any) {
-      Alert.alert(
-        'PDF Report',
-        err?.response?.data?.detail || 'Unable to generate the PDF report. Please try again.'
-      );
-    } finally {
-      setPdfLoading(false);
-    }
   }
 
   // Loading State
@@ -275,13 +259,7 @@ export default function HistoryDetailScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <Button
-          title="Generate PDF Report"
-          onPress={handleGeneratePDF}
-          variant="outline"
-          loading={pdfLoading}
-          disabled={pdfLoading}
-        />
+        <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
         <Button
           title="Back to History"
           onPress={() => router.back()}
