@@ -290,6 +290,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: Colors.primary,

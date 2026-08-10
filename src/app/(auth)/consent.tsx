@@ -227,6 +227,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
     paddingRight: Spacing.md, // ensure text doesn't hit the edge
+    minHeight: 44,
   },
   checkbox: {
     width: 24,

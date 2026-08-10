@@ -149,10 +149,12 @@ const styles = StyleSheet.create({
   advancedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xs,
+    minHeight: 44,
   },
   advancedLabel: {
     fontFamily: Typography.semiBold,

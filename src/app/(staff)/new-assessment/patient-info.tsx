@@ -142,7 +142,11 @@ export default function PatientInfoScreen() {
                 {selectedPatient.patient_ref} · {selectedPatient.sex} · Age {selectedPatient.age}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setPatient(null as any)} activeOpacity={0.7}>
+            <TouchableOpacity 
+              onPress={() => setPatient(null as any)} 
+              activeOpacity={0.7}
+              style={styles.changeLinkContainer}
+            >
               <Text style={styles.changeLink}>Change</Text>
             </TouchableOpacity>
           </View>
@@ -309,6 +313,10 @@ const styles = StyleSheet.create({
   selectedMeta: {
     fontFamily: Typography.regular, fontSize: 13,
     color: Colors.textSecondary, marginTop: 2,
+  },
+  changeLinkContainer: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   changeLink: {
     fontFamily: Typography.medium, fontSize: 14, color: Colors.primaryLight,

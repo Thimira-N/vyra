@@ -254,12 +254,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   filterChip: {
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: Colors.primary,

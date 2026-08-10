@@ -516,6 +516,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   overrideChipActive: {
     backgroundColor: Colors.textPrimary,
