@@ -52,8 +52,19 @@ export async function searchPatients(query: string): Promise<PatientOut[]> {
   return data;
 }
 
-/** GET /patients/{id} — fetch one patient by ID */
+/**
+ * GET /patients/{id} — fetch one patient by ID.
+ *
+ * NOTE: the backend returns { patient: PatientOut, assessments: [...] },
+ * not a flat PatientOut — this was missed when the frontend service layer
+ * was built against the Spec's description rather than the live response
+ * shape. Unwrapping .patient here keeps every call site (Home, History,
+ * etc.) working with a flat PatientOut as originally intended, without
+ * needing to change them individually.
+ */
 export async function getPatientById(id: string): Promise<PatientOut> {
-  const { data } = await api.get<PatientOut>(`/patients/${id}`);
-  return data;
+  const { data } = await api.get<{ patient: PatientOut; assessments: unknown[] }>(
+    `/patients/${id}`
+  );
+  return data.patient;
 }
