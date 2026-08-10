@@ -1,26 +1,36 @@
 import React, { useState } from 'react';
-import { Alert, Linking, ViewStyle } from 'react-native';
+import { Alert, ViewStyle } from 'react-native';
+import { useRouter } from 'expo-router';
 import Button from './Button';
 import { getAssessmentReportUrl } from '@/services/assessmentsApi';
 
 interface ReportViewerButtonProps {
   assessmentId: string;
+  /** Title shown in the PDF viewer header bar. */
+  reportTitle?: string;
   disabled?: boolean;
   style?: ViewStyle;
 }
 
 export default function ReportViewerButton({
   assessmentId,
+  reportTitle,
   disabled,
   style,
 }: ReportViewerButtonProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handlePress() {
     setLoading(true);
     try {
       const url = await getAssessmentReportUrl(assessmentId);
-      await Linking.openURL(url);
+      // Navigate to the in-app PDF viewer instead of kicking
+      // the user out to the system browser via Linking.openURL.
+      router.push({
+        pathname: '/pdf-viewer',
+        params: { url, title: reportTitle || 'Clinical Report' },
+      });
     } catch (err: any) {
       Alert.alert(
         'PDF Report',

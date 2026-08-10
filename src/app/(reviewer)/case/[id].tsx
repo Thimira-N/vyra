@@ -353,7 +353,7 @@ export default function CaseDetailScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         {status === 'reviewed' && (
-          <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
+          <ReportViewerButton assessmentId={assessment._id} reportTitle={assessment.assessment_ref} style={{ marginBottom: Spacing.sm }} />
         )}
         <Button
           title="Back to Dashboard"

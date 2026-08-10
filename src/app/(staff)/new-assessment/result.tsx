@@ -223,7 +223,7 @@ export default function ResultScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
+        <ReportViewerButton assessmentId={assessment._id} reportTitle={assessment.assessment_ref} style={{ marginBottom: Spacing.sm }} />
         <Button
           title="Done"
           onPress={handleDone}

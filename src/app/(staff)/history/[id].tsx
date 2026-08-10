@@ -259,7 +259,7 @@ export default function HistoryDetailScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <ReportViewerButton assessmentId={assessment._id} style={{ marginBottom: Spacing.sm }} />
+        <ReportViewerButton assessmentId={assessment._id} reportTitle={assessment.assessment_ref} style={{ marginBottom: Spacing.sm }} />
         <Button
           title="Back to History"
           onPress={() => router.back()}
