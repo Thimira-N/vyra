@@ -17,7 +17,9 @@ import {
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 import { Colors } from '@/constants/theme';
+import { NotificationService } from '@/services/notificationService';
 
 // Prevent splash screen from auto-hiding while we load fonts
 SplashScreen.preventAutoHideAsync();
@@ -60,6 +62,11 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  useEffect(() => {
+    // Register for push notifications when the app starts
+    NotificationService.registerForPushNotificationsAsync();
+  }, []);
+
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -84,6 +91,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="+not-found" options={{ headerShown: true, title: 'Not Found' }} />
         </Stack>
+        <Toast />
       </ThemeProvider>
     </QueryClientProvider>
   );

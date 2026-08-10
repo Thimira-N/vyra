@@ -17,6 +17,7 @@ import { Colors, Typography, Spacing } from '@/constants/theme';
 import Button from '@/components/ui/Button';
 import { createAssessment, type AssessmentOut } from '@/services/assessmentsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
+import { NotificationService } from '@/services/notificationService';
 
 const ANALYSIS_STEPS = [
   { label: 'Analyzing image...', icon: '🔬' },
@@ -79,6 +80,15 @@ export default function AnalyzingScreen() {
       setAssessmentResult(result);
       setAssessmentId(result._id);
 
+      // Trigger a local notification simulating a backend push when the report is ready
+      NotificationService.scheduleLocalNotification(
+        'Assessment Ready',
+        `Risk analysis completed for the patient.`,
+      );
+      
+      // Also show a toast
+      NotificationService.notify('success', 'Analysis Complete', 'Risk report generated successfully.', true);
+
       // Small delay to let animation finish, then navigate
       setTimeout(() => {
         router.replace({
@@ -96,6 +106,7 @@ export default function AnalyzingScreen() {
           typeof detail === 'string' ? detail : 'Assessment submission failed. Please try again.',
         );
       }
+      NotificationService.notify('error', 'Analysis Failed', 'There was a problem generating the risk report.', true);
     }
   }
 

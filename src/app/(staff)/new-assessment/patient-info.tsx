@@ -27,6 +27,8 @@ import Button from '@/components/ui/Button';
 import { searchPatients, createPatient, type PatientOut } from '@/services/patientsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 
+import { NotificationService } from '@/services/notificationService';
+
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
 export default function PatientInfoScreen() {
@@ -104,9 +106,21 @@ export default function PatientInfoScreen() {
       });
       setPatient(patient);
       setShowNewForm(false);
+      
+      // Notify success
+      NotificationService.notify(
+        'success',
+        'Patient Created',
+        `Successfully created record for ${patient.full_name}`
+      );
     } catch (error: any) {
       setCreateError(
         error?.response?.data?.detail || 'Failed to create patient. Please try again.',
+      );
+      NotificationService.notify(
+        'error',
+        'Failed to create',
+        'An error occurred while creating the patient record.'
       );
     } finally {
       setIsCreating(false);
