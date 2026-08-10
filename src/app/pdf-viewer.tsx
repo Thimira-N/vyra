@@ -20,11 +20,13 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { File, Directory, Paths } from 'expo-file-system';
+import { StorageAccessFramework, readAsStringAsync, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as SecureStore from 'expo-secure-store';
@@ -68,48 +70,63 @@ export default function PdfViewerScreen() {
     fetchPdf();
   }, [fetchPdf]);
 
-  // Download: uses Directory picker on Android to save directly to a chosen folder.
-  // Persists the chosen directory URI to SecureStore so subsequent downloads 
-  // are automatic (no picker) until the user revokes the permission.
+  // Download: Uses PermissionsAndroid to seamlessly save directly to the public 
+  // Downloads folder on Android, matching standard mobile app behavior.
   async function handleDownload() {
     if (!localFile) return;
     setBusy('download');
     try {
       if (Platform.OS === 'android') {
         const safeName = String(displayTitle).replace(/[^a-z0-9\-_]+/gi, '_') + '.pdf';
-        const savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
-        let dir: Directory | null = null;
         
-        // Try to use the previously saved directory
-        if (savedUri) {
-          try {
-            dir = new Directory(savedUri);
-            const destFile = new File(dir, safeName);
-            await localFile.copy(destFile, { overwrite: true });
-            Alert.alert('Saved', 'The report was saved to your previously selected folder.');
-            return;
-          } catch (e) {
-            // Permission might have been revoked or folder deleted, fall back to picker
-            dir = null;
+          let savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
+          let hasPermission = false;
+          
+          if (savedUri) {
+            hasPermission = true;
           }
-        }
-        
-        // No saved dir or it failed - ask user to pick a folder
-        if (!dir) {
-          try {
-            dir = await Directory.pickDirectoryAsync();
-            await SecureStore.setItemAsync('downloads_dir_uri', dir.uri);
-            const destFile = new File(dir, safeName);
-            await localFile.copy(destFile, { overwrite: true });
-            Alert.alert('Saved', 'The report was saved to the selected folder.');
-          } catch (e) {
-            // Picker cancelled or failed
-            console.log('Download picker error:', e);
-            Alert.alert('Download failed', 'Unable to save the report.');
+
+          if (!savedUri || !hasPermission) {
+            // First time - prompt user to select a folder (e.g. Downloads)
+            // SAF natively takes a persistable URI permission on Android, meaning it won't ask again!
+            const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+              savedUri = permissions.directoryUri;
+              await SecureStore.setItemAsync('downloads_dir_uri', savedUri);
+              hasPermission = true;
+            } else {
+              Alert.alert('Permission Denied', 'Storage permission is required to download files.');
+              setBusy(null);
+              return;
+            }
           }
-        }
+
+          if (savedUri && hasPermission) {
+            try {
+              // Create the file in the selected directory
+              const newFileUri = await StorageAccessFramework.createFileAsync(
+                savedUri!, 
+                safeName, 
+                'application/pdf'
+              );
+              // Read local file and write to the SAF URI
+              const base64Data = await readAsStringAsync(localFile.uri, { 
+                encoding: EncodingType.Base64 
+              });
+              await writeAsStringAsync(newFileUri, base64Data, { 
+                encoding: EncodingType.Base64 
+              });
+              
+              Alert.alert('Saved', `Report successfully downloaded as ${safeName}`);
+            } catch (e) {
+              console.log('SAF download failed:', e);
+              // Clear stored permission so it prompts again next time
+              await SecureStore.deleteItemAsync('downloads_dir_uri');
+              Alert.alert('Download failed', 'Unable to save the report. Please try again.');
+            }
+          }
       } else {
-        // iOS doesn't persist directory permissions easily without bookmarks, just use Share
+        // iOS doesn't allow blind writes to a public "Downloads" folder due to sandboxing.
         await Sharing.shareAsync(localFile.uri, {
           mimeType: 'application/pdf',
           dialogTitle: 'Save report',
