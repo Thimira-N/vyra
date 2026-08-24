@@ -1,77 +1,50 @@
-import os, re
+import re
 
-f1_path = r'c:\Users\thimi\clinical-rss\vyra\src\app\(staff)\new-assessment\result.tsx'
-with open(f1_path, 'r', encoding='utf-8') as f:
-    c1 = f.read()
+main_path = r'..\clinical-rss-api\app\main.py'
+with open(main_path, 'r', encoding='utf-8') as f:
+    main_code = f.read()
 
-c1 = re.sub(r'(import \{[\s\S]*?)(Alert,)([\s\S]*?\} from \'react-native\';)', r'\1\2\n  ActivityIndicator,\3', c1)
+# Replace build_differential_summary
+new_func = '''def build_differential_summary(img_class=None, lesion_desc=None,
+                                txt_class=None, top_disease=None,
+                                vit_class=None, vital_flags=None):
+    unified = "Unknown condition"
+    if img_class == "High":
+        unified = lesion_desc if lesion_desc else "High-risk skin lesion"
+    elif vit_class == "High":
+        unified = "Systemic instability (critical vitals)"
+    elif txt_class == "High" or top_disease not in (None, "Unspecified condition"):
+        unified = top_disease
+    elif img_class == "Medium":
+        unified = lesion_desc if lesion_desc else "Moderate-risk skin lesion"
+    else:
+        unified = top_disease if top_disease else "Non-specific symptoms"
 
-state_code = '''
-  const [gradcamLoading, setGradcamLoading] = useState(true);
-  const [gradcamError, setGradcamError] = useState(false);
-'''
-c1 = re.sub(r'(const reset = useAssessmentDraftStore\(\(s\) => s\.reset\);)', r'\1\n' + state_code, c1)
+    return {
+        "image_finding": None,
+        "symptom_match": None,
+        "vitals_pattern": None,
+        "consistency_note": unified
+    }'''
 
-old_gradcam = r'''      {/* Grad-CAM overlay if available */}
-      {result.gradcam_overlay_url && (
-        <View style={[styles.card, Shadows.card]}>
-          <Text style={styles.cardTitle}>Grad-CAM Visualization</Text>
-          <Image
-            source={{ uri: result.gradcam_overlay_url }}
-            style={styles.gradcamImage}
-            resizeMode="contain"
-          />
-        </View>
-      )}'''
+main_code = re.sub(r'def build_differential_summary\(.*?\):.*?return summary\n', new_func + '\n', main_code, flags=re.DOTALL)
 
-new_gradcam = r'''      {/* Grad-CAM overlay if available */}
-      {result.gradcam_overlay_url && (
-        <View style={[styles.card, Shadows.card]}>
-          <Text style={styles.cardTitle}>Grad-CAM Visualization</Text>
-          {gradcamLoading && !gradcamError && (
-             <View style={[styles.gradcamImage, { justifyContent: 'center', alignItems: 'center' }]}>
-               <ActivityIndicator color={Colors.primary} />
-             </View>
-          )}
-          {gradcamError ? (
-             <View style={[styles.gradcamImage, { justifyContent: 'center', alignItems: 'center' }]}>
-               <Text style={styles.errorSubtitle}>Failed to load Grad-CAM overlay</Text>
-             </View>
-          ) : (
-            <Image
-              source={{ uri: result.gradcam_overlay_url }}
-              style={[styles.gradcamImage, gradcamLoading && { display: 'none' }]}
-              resizeMode="contain"
-              onLoadStart={() => setGradcamLoading(true)}
-              onLoadEnd={() => setGradcamLoading(false)}
-              onError={() => setGradcamError(true)}
-            />
-          )}
-        </View>
-      )}'''
+with open(main_path, 'w', encoding='utf-8') as f:
+    f.write(main_code)
 
-if old_gradcam in c1:
-    c1 = c1.replace(old_gradcam, new_gradcam)
-    print("Replaced in result.tsx")
-else:
-    print("Not found in result.tsx")
+assessments_path = r'..\clinical-rss-api\app\routers\assessments.py'
+with open(assessments_path, 'r', encoding='utf-8') as f:
+    ass_code = f.read()
 
-with open(f1_path, 'w', encoding='utf-8') as f:
-    f.write(c1)
+if 'apply_safety_floor' not in ass_code:
+    ass_code = ass_code.replace('run_fusion,', 'run_fusion,\n        apply_safety_floor,')
+    ass_code = ass_code.replace('fused_probs, fused_class, method = run_fusion(img_probs, txt_probs, vit_probs)',
+'''fused_probs, fused_class, method = run_fusion(img_probs, txt_probs, vit_probs)
+        fused_class, fused_probs, overridden = apply_safety_floor(fused_class, fused_probs, vit_class, vital_flags)
+        if overridden:
+            method += " + vitals safety floor"''')
 
-f2_path = r'c:\Users\thimi\clinical-rss\vyra\src\app\(reviewer)\case\[id].tsx'
-with open(f2_path, 'r', encoding='utf-8') as f:
-    c2 = f.read()
+with open(assessments_path, 'w', encoding='utf-8') as f:
+    f.write(ass_code)
 
-c2 = re.sub(r'(const \[isSubmitting, setIsSubmitting\] = useState\(false\);)', r'\1\n' + state_code, c2)
-
-if old_gradcam in c2:
-    c2 = c2.replace(old_gradcam, new_gradcam)
-    print("Replaced in case/[id].tsx")
-else:
-    print("Not found in case/[id].tsx")
-
-with open(f2_path, 'w', encoding='utf-8') as f:
-    f.write(c2)
-
-print('Success')
+print("Backend updated.")

@@ -262,7 +262,7 @@ export default function CaseDetailScreen() {
         )}
         {result.differential_summary.consistency_note && (
           <View style={styles.consistencyCard}>
-            <Text style={styles.consistencyLabel}>Consistency Note</Text>
+            <Text style={styles.consistencyLabel}>Unified Clinical Impression</Text>
             <Text style={styles.consistencyText}>
               {result.differential_summary.consistency_note}
             </Text>
