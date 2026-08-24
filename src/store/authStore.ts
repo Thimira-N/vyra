@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { getMe } from '@/services/authApi';
 
 const SECURE_STORE_TOKEN_KEY = 'auth_token';
@@ -55,10 +56,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
 
   setAuth: async (user: User, token: string) => {
-    try {
-      await SecureStore.setItemAsync(SECURE_STORE_TOKEN_KEY, token);
-    } catch {
-      // SecureStore may not be available on web
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') window.localStorage.setItem(SECURE_STORE_TOKEN_KEY, token);
+    } else {
+      try {
+        await SecureStore.setItemAsync(SECURE_STORE_TOKEN_KEY, token);
+      } catch {
+        // SecureStore may not be available
+      }
     }
     set({ user, token, isAuthenticated: true, isLoading: false });
   },
@@ -68,17 +73,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearAuth: async () => {
-    try {
-      await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
-    } catch {
-      // Ignore cleanup errors
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') window.localStorage.removeItem(SECURE_STORE_TOKEN_KEY);
+    } else {
+      try {
+        await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
     set({ user: null, token: null, isAuthenticated: false, isLoading: false });
   },
 
   loadToken: async () => {
     try {
-      const token = await SecureStore.getItemAsync(SECURE_STORE_TOKEN_KEY);
+      let token: string | null = null;
+      if (Platform.OS === 'web') {
+        token = typeof window !== 'undefined' ? window.localStorage.getItem(SECURE_STORE_TOKEN_KEY) : null;
+      } else {
+        token = await SecureStore.getItemAsync(SECURE_STORE_TOKEN_KEY);
+      }
+
       if (!token) {
         set({ token: null, user: null, isAuthenticated: false, isLoading: false });
         return null;
@@ -93,10 +108,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return user;
     } catch {
       // Token expired or invalid — clear everything
-      try {
-        await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
-      } catch {
-        // Ignore
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') window.localStorage.removeItem(SECURE_STORE_TOKEN_KEY);
+      } else {
+        try {
+          await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
+        } catch {
+          // Ignore
+        }
       }
       set({ token: null, user: null, isAuthenticated: false, isLoading: false });
       return null;

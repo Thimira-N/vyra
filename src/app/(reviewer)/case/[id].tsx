@@ -38,6 +38,10 @@ export default function CaseDetailScreen() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [gradcamLoading, setGradcamLoading] = useState(true);
+  const [gradcamError, setGradcamError] = useState(false);
+
+
   // Review Form State
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [riskOverride, setRiskOverride] = useState<RiskLevel | null>(null);
@@ -270,11 +274,25 @@ export default function CaseDetailScreen() {
       {result.gradcam_overlay_url && (
         <View style={[styles.card, Shadows.card]}>
           <Text style={styles.cardTitle}>Grad-CAM Visualization</Text>
-          <Image
-            source={{ uri: result.gradcam_overlay_url }}
-            style={styles.gradcamImage}
-            resizeMode="contain"
-          />
+          {gradcamLoading && !gradcamError && (
+             <View style={[styles.gradcamImage, { justifyContent: 'center', alignItems: 'center' }]}>
+               <ActivityIndicator color={Colors.primary} />
+             </View>
+          )}
+          {gradcamError ? (
+             <View style={[styles.gradcamImage, { justifyContent: 'center', alignItems: 'center' }]}>
+               <Text style={{ fontFamily: Typography.regular, fontSize: 14, color: Colors.textSecondary, textAlign: 'center' }}>Failed to load Grad-CAM overlay</Text>
+             </View>
+          ) : (
+            <Image
+              source={{ uri: result.gradcam_overlay_url }}
+              style={[styles.gradcamImage, gradcamLoading && { display: 'none' }]}
+              resizeMode="contain"
+              onLoadStart={() => setGradcamLoading(true)}
+              onLoadEnd={() => setGradcamLoading(false)}
+              onError={() => setGradcamError(true)}
+            />
+          )}
         </View>
       )}
 

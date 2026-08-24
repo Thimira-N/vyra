@@ -8,6 +8,7 @@
 
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { API_BASE_URL } from '@/constants/config';
 
 const SECURE_STORE_TOKEN_KEY = 'auth_token';
@@ -26,12 +27,17 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync(SECURE_STORE_TOKEN_KEY);
+      let token: string | null = null;
+      if (Platform.OS === 'web') {
+        token = typeof window !== 'undefined' ? window.localStorage.getItem(SECURE_STORE_TOKEN_KEY) : null;
+      } else {
+        token = await SecureStore.getItemAsync(SECURE_STORE_TOKEN_KEY);
+      }
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch {
-      // SecureStore may throw on web — proceed without token
+      // SecureStore may throw — proceed without token
     }
     return config;
   },
@@ -46,9 +52,13 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       try {
-        await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') window.localStorage.removeItem(SECURE_STORE_TOKEN_KEY);
+        } else {
+          await SecureStore.deleteItemAsync(SECURE_STORE_TOKEN_KEY);
+        }
       } catch {
-        // Ignore SecureStore errors during cleanup
+        // Ignore errors during cleanup
       }
       // Auth store / navigation will handle the redirect to login
       // in Phase F1 when auth flow is fully wired.
