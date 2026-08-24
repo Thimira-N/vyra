@@ -219,7 +219,7 @@ export default function ResultScreen() {
           ) : (
             <Image
               source={{ uri: result.gradcam_overlay_url }}
-              style={[styles.gradcamImage, gradcamLoading && { display: 'none' }]}
+              style={[styles.gradcamImage, gradcamLoading && { position: 'absolute', opacity: 0 }]}
               resizeMode="contain"
               onLoadStart={() => setGradcamLoading(true)}
               onLoadEnd={() => setGradcamLoading(false)}
