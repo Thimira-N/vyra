@@ -2,7 +2,8 @@
  * Root Layout — loads Inter font, wraps app in TanStack QueryClientProvider,
  * applies clinical theme, and handles splash screen.
  *
- * Phase U0: Added ThemeProvider wrapper, dynamic StatusBar, Inter_800ExtraBold.
+ * Phase U0/U2: Added ThemeProvider wrapper, dynamic StatusBar, Inter_800ExtraBold,
+ * and theme-aware root Stack defaults with GlassHeader presentation options.
  * Spec §4: "Root layout — loads fonts, auth check, splash"
  */
 
@@ -19,8 +20,11 @@ import {
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
+import { GlassHeader } from '@/components/ui/GlassHeader';
+import { TypographyScale } from '@/constants/theme';
 import { NotificationService } from '@/services/notificationService';
 
 // Prevent splash screen from auto-hiding while we load fonts
@@ -77,6 +81,17 @@ function RootLayoutInner() {
         screenOptions={{
           headerShown: false,
           animation: 'fade',
+          headerTransparent: true,
+          headerBackground: () => <GlassHeader style={StyleSheet.absoluteFill} />,
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            fontFamily: TypographyScale.h3.fontFamily,
+            fontSize: TypographyScale.h3.fontSize,
+            color: colors.textPrimary,
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
         }}
       >
         <Stack.Screen name="index" />
@@ -85,10 +100,22 @@ function RootLayoutInner() {
         <Stack.Screen name="(reviewer)" />
         <Stack.Screen
           name="pdf-viewer"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            headerShown: false,
+          }}
         />
         <Stack.Screen name="dev-theme-check" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" options={{ headerShown: true, title: 'Not Found' }} />
+        <Stack.Screen
+          name="+not-found"
+          options={{
+            headerShown: true,
+            title: 'Not Found',
+            headerTransparent: true,
+            headerBackground: () => <GlassHeader style={StyleSheet.absoluteFill} />,
+          }}
+        />
       </Stack>
       <Toast />
     </ExpoRouterThemeProvider>

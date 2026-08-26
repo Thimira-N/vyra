@@ -1,7 +1,7 @@
 /**
  * GlassHeader — sticky translucent header/navbar component.
  *
- * Phase U0: Replaces solid `headerStyle` backgrounds in _layout.tsx files.
+ * Phase U0/U2: Replaces solid `headerStyle` backgrounds in _layout.tsx files.
  * Uses higher blur amounts (header tier per Spec §2.3) so content
  * scrolling behind stays visually distinct but doesn't compete with
  * header text.
@@ -18,7 +18,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Glass } from '@/constants/theme';
 
 interface GlassHeaderProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /** Additional styles applied to the outer wrapper */
   style?: StyleProp<ViewStyle>;
 }
