@@ -1,13 +1,11 @@
 /**
- * Login — Spec §6.1
+ * Login — Spec §6.1, UI Upgrade U3
  *
- * Fields: email, password. Validation: valid email format, password non-empty.
- * Calls POST /auth/login. On success: store JWT in SecureStore, store user in
- * authStore, check consent_accepted_at — if null, route to consent.tsx first;
- * else route by role. Link to Register and Forgot Password.
- *
- * Three states: loading (button spinner), error (inline message + retry),
- * and default form.
+ * "Clinical Glass" restyle:
+ * - Full Screen wrapper with gradient mesh + blob accents
+ * - Hero typography (display/h1) in high contrast
+ * - Form sitting in elevated GlassCard
+ * - Preserved logic: validation, API call, token/auth persistence, routing
  */
 
 import React, { useState } from 'react';
@@ -18,17 +16,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import TextField from '@/components/ui/TextField';
 import { login } from '@/services/authApi';
 import { useAuthStore } from '@/store/authStore';
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -101,142 +101,149 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen safeArea={false}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
+          {/* Hero Branding Header */}
           <View style={styles.header}>
-            <Text style={styles.logo}>Vyra</Text>
-            <Text style={styles.subtitle}>Clinical Risk Stratification</Text>
+            <Text style={[TypographyScale.display, styles.brandName, { color: colors.primary }]}>
+              Vyra
+            </Text>
+            <Text style={[TypographyScale.bodyLg, styles.tagline, { color: colors.textSecondary }]}>
+              Clinical Risk Stratification
+            </Text>
           </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            <Text style={styles.title}>Sign In</Text>
+          {/* Form in Elevated Glass Card */}
+          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.card}>
+            <View style={styles.cardInner}>
+              <Text style={[TypographyScale.h2, styles.formTitle, { color: colors.textPrimary }]}>
+                Sign In
+              </Text>
 
-            {apiError ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>{apiError}</Text>
-              </View>
-            ) : null}
+              {apiError ? (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    {
+                      backgroundColor: `${colors.danger}15`,
+                      borderColor: `${colors.danger}35`,
+                    },
+                  ]}
+                >
+                  <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
+                    {apiError}
+                  </Text>
+                </View>
+              ) : null}
 
-            <TextField
-              label="Email"
-              placeholder="you@clinic.lk"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError('');
-                if (apiError) setApiError('');
-              }}
-              error={emailError}
-            />
+              <TextField
+                label="Email"
+                placeholder="you@clinic.lk"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                  if (apiError) setApiError('');
+                }}
+                error={emailError}
+              />
 
-            <TextField
-              label="Password"
-              placeholder="••••••••"
-              secureTextEntry
-              autoComplete="password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError('');
-                if (apiError) setApiError('');
-              }}
-              error={passwordError}
-            />
+              <TextField
+                label="Password"
+                placeholder="••••••••"
+                secureTextEntry
+                autoComplete="password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError('');
+                  if (apiError) setApiError('');
+                }}
+                error={passwordError}
+              />
 
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              disabled={isLoading}
-            />
-          </View>
+              <Button
+                title="Sign In"
+                onPress={handleLogin}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.submitButton}
+              />
+            </View>
+          </GlassCard>
 
-          {/* Links */}
+          {/* Navigation Links */}
           <View style={styles.links}>
-            <Link href="/(auth)/forgot-password" style={styles.link}>
+            <Link href="/(auth)/forgot-password" style={[styles.link, { color: colors.primaryLight }]}>
               Forgot Password?
             </Link>
-            <Link href="/(auth)/register" style={styles.link}>
+            <Link href="/(auth)/register" style={[styles.link, { color: colors.primaryLight }]}>
               Create an Account
             </Link>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   flex: {
     flex: 1,
   },
-  container: {
+  scrollContent: {
     flexGrow: 1,
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xxl,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
-  logo: {
-    fontFamily: Typography.bold,
-    fontSize: 36,
-    color: Colors.primary,
+  brandName: {
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
+  tagline: {
     marginTop: Spacing.xxs,
+    textAlign: 'center',
   },
-  form: {
-    marginBottom: Spacing.lg,
+  card: {
+    marginBottom: Spacing.xl,
   },
-  title: {
-    fontFamily: Typography.bold,
-    fontSize: 24,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+  cardInner: {
+    padding: Spacing.lg,
+  },
+  formTitle: {
+    marginBottom: Spacing.md,
   },
   errorBanner: {
-    backgroundColor: Colors.riskHigh + '12',
     borderWidth: 1,
-    borderColor: Colors.riskHigh + '30',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  errorBannerText: {
-    fontFamily: Typography.medium,
-    fontSize: 13,
-    color: Colors.riskHigh,
-    lineHeight: 19,
+  submitButton: {
+    marginTop: Spacing.xs,
   },
   links: {
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   link: {
-    fontFamily: Typography.medium,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.primaryLight,
+    fontWeight: '600',
   },
 });

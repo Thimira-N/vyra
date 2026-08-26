@@ -1,23 +1,24 @@
 /**
- * Forgot Password — Spec §6.1
+ * Forgot Password — Spec §6.1, UI Upgrade U3
  *
- * v1 scope: simple "reset link sent" stub per Spec.
- * "For v1 scope, this can be a simple 'reset link sent' stub
- *  (email delivery is infrastructure beyond coursework scope) —
- *  note this explicitly as a known v1 limitation."
- *
- * No backend call — purely local state transition.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - Form & Success states in elevated GlassCard
+ * - Preserved logic: email validation, local state transition for v1 scope
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import TextField from '@/components/ui/TextField';
 
 export default function ForgotPasswordScreen() {
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -41,138 +42,142 @@ export default function ForgotPasswordScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen safeArea={false}>
         <View style={styles.container}>
-          <View style={styles.successCard}>
-            <Text style={styles.successIcon}>✉️</Text>
-            <Text style={styles.successTitle}>Check Your Email</Text>
-            <Text style={styles.successText}>
-              If an account exists for{' '}
-              <Text style={styles.emailHighlight}>{email.trim()}</Text>
-              , you will receive a password reset link shortly.
-            </Text>
-          </View>
+          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.card}>
+            <View style={styles.cardInner}>
+              <Text style={styles.successIcon}>✉️</Text>
+              <Text style={[TypographyScale.h2, styles.successTitle, { color: colors.textPrimary }]}>
+                Check Your Email
+              </Text>
+              <Text style={[TypographyScale.body, styles.successText, { color: colors.textSecondary }]}>
+                If an account exists for{' '}
+                <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
+                  {email.trim()}
+                </Text>
+                , you will receive a password reset link shortly.
+              </Text>
+            </View>
+          </GlassCard>
 
-          <Text style={styles.note}>
+          <Text style={[TypographyScale.caption, styles.note, { color: colors.textSecondary }]}>
             Note: Email delivery is a known v1 limitation. This feature will be
             fully implemented in a future release.
           </Text>
 
-          <Link href="/(auth)/login" style={styles.backLink}>
+          <Link href="/(auth)/login" style={[styles.backLink, { color: colors.primaryLight }]}>
             ← Back to Sign In
           </Link>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Reset Password</Text>
-        <Text style={styles.description}>
-          Enter your email address and we'll send you a password reset link.
-        </Text>
+    <Screen safeArea={false}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+              Reset Password
+            </Text>
+            <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
+              Enter your email address and we'll send you a password reset link.
+            </Text>
+          </View>
 
-        <View style={styles.form}>
-          <TextField
-            label="Email"
-            placeholder="you@clinic.lk"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (emailError) setEmailError('');
-            }}
-            error={emailError}
-          />
-          <Button title="Send Reset Link" onPress={handleSend} />
-        </View>
+          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.card}>
+            <View style={styles.cardInner}>
+              <TextField
+                label="Email"
+                placeholder="you@clinic.lk"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                }}
+                error={emailError}
+              />
+              <Button title="Send Reset Link" onPress={handleSend} style={styles.sendButton} />
+            </View>
+          </GlassCard>
 
-        <Text style={styles.note}>
-          Note: Email delivery is a known v1 limitation. This feature will be
-          fully implemented in a future release.
-        </Text>
+          <Text style={[TypographyScale.caption, styles.note, { color: colors.textSecondary }]}>
+            Note: Email delivery is a known v1 limitation. This feature will be
+            fully implemented in a future release.
+          </Text>
 
-        <Link href="/(auth)/login" style={styles.backLink}>
-          ← Back to Sign In
-        </Link>
-      </View>
-    </SafeAreaView>
+          <Link href="/(auth)/login" style={[styles.backLink, { color: colors.primaryLight }]}>
+            ← Back to Sign In
+          </Link>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  flex: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xxl,
     justifyContent: 'center',
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 28,
-    color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   description: {
-    fontFamily: Typography.regular,
-    fontSize: 15,
-    color: Colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 22,
+  },
+  card: {
     marginBottom: Spacing.lg,
   },
-  form: {
-    marginBottom: Spacing.lg,
+  cardInner: {
+    padding: Spacing.lg,
+  },
+  sendButton: {
+    marginTop: Spacing.xs,
   },
   note: {
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
+    textAlign: 'center',
     fontStyle: 'italic',
     lineHeight: 18,
     marginBottom: Spacing.lg,
   },
   backLink: {
-    fontFamily: Typography.medium,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.primaryLight,
-  },
-
-  // Success state
-  successCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.riskLow + '30',
-    padding: Spacing.lg,
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   successIcon: {
     fontSize: 40,
     marginBottom: Spacing.sm,
-  },
-  successTitle: {
-    fontFamily: Typography.bold,
-    fontSize: 20,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  successText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 21,
     textAlign: 'center',
   },
-  emailHighlight: {
-    fontFamily: Typography.semiBold,
-    color: Colors.textPrimary,
+  successTitle: {
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  successText: {
+    lineHeight: 22,
+    textAlign: 'center',
   },
 });

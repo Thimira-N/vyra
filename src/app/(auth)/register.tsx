@@ -1,12 +1,11 @@
 /**
- * Register — Spec §6.1
+ * Register — Spec §6.1, UI Upgrade U3
  *
- * Fields: full name, email, password, confirm password,
- *   role (segmented: "Healthcare Staff" / "Reviewer"), facility name.
- * Validation: email format, password ≥ 8 chars, passwords match.
- * Calls POST /auth/register → auto-login → routes to consent.tsx.
- *
- * Three states: loading (button spinner), error (inline banner), default form.
+ * "Clinical Glass" restyle:
+ * - Full Screen wrapper with gradient mesh + blob accents
+ * - Form sitting in elevated GlassCard
+ * - Sleek segmented role selector
+ * - Preserved logic: validation, API call, token/auth persistence, routing to consent
  */
 
 import React, { useState } from 'react';
@@ -19,9 +18,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import TextField from '@/components/ui/TextField';
 import { register } from '@/services/authApi';
@@ -30,6 +31,7 @@ import { useAuthStore } from '@/store/authStore';
 type Role = 'staff' | 'reviewer';
 
 export default function RegisterScreen() {
+  const { colors } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -127,189 +129,236 @@ export default function RegisterScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen safeArea={false}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            Register as Healthcare Staff or Reviewer
-          </Text>
-
-          {apiError ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{apiError}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.form}>
-            <TextField
-              label="Full Name"
-              placeholder="Dr. Amara Silva"
-              autoCapitalize="words"
-              autoComplete="name"
-              value={fullName}
-              onChangeText={(text) => {
-                setFullName(text);
-                clearFieldError('fullName');
-              }}
-              error={errors.fullName}
-            />
-
-            <TextField
-              label="Email"
-              placeholder="amara@clinic.lk"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                clearFieldError('email');
-              }}
-              error={errors.email}
-            />
-
-            <TextField
-              label="Password"
-              placeholder="Minimum 8 characters"
-              secureTextEntry
-              autoComplete="new-password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                clearFieldError('password');
-              }}
-              error={errors.password}
-            />
-
-            <TextField
-              label="Confirm Password"
-              placeholder="Re-enter password"
-              secureTextEntry
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                clearFieldError('confirmPassword');
-              }}
-              error={errors.confirmPassword}
-            />
-
-            {/* Role selector — segmented control (Spec §6.1) */}
-            <Text style={styles.fieldLabel}>Role</Text>
-            <View style={styles.roleSelector}>
-              <TouchableOpacity
-                style={[styles.roleOption, role === 'staff' && styles.roleOptionActive]}
-                onPress={() => setRole('staff')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.roleText, role === 'staff' && styles.roleTextActive]}>
-                  Healthcare Staff
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleOption, role === 'reviewer' && styles.roleOptionActive]}
-                onPress={() => setRole('reviewer')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.roleText, role === 'reviewer' && styles.roleTextActive]}>
-                  Reviewer
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextField
-              label="Facility Name"
-              placeholder="Negombo Base Hospital"
-              autoCapitalize="words"
-              value={facilityName}
-              onChangeText={(text) => {
-                setFacilityName(text);
-                clearFieldError('facilityName');
-              }}
-              error={errors.facilityName}
-            />
-
-            <Button
-              title="Register"
-              onPress={handleRegister}
-              loading={isLoading}
-              disabled={isLoading}
-              style={styles.registerButton}
-            />
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+              Create Account
+            </Text>
+            <Text style={[TypographyScale.body, styles.subtitle, { color: colors.textSecondary }]}>
+              Register as Healthcare Staff or Reviewer
+            </Text>
           </View>
 
+          {/* Form in Glass Card */}
+          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.card}>
+            <View style={styles.cardInner}>
+              {apiError ? (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    {
+                      backgroundColor: `${colors.danger}15`,
+                      borderColor: `${colors.danger}35`,
+                    },
+                  ]}
+                >
+                  <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
+                    {apiError}
+                  </Text>
+                </View>
+              ) : null}
+
+              <TextField
+                label="Full Name"
+                placeholder="Dr. Amara Silva"
+                autoCapitalize="words"
+                autoComplete="name"
+                value={fullName}
+                onChangeText={(text) => {
+                  setFullName(text);
+                  clearFieldError('fullName');
+                }}
+                error={errors.fullName}
+              />
+
+              <TextField
+                label="Email"
+                placeholder="amara@clinic.lk"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  clearFieldError('email');
+                }}
+                error={errors.email}
+              />
+
+              <TextField
+                label="Password"
+                placeholder="Minimum 8 characters"
+                secureTextEntry
+                autoComplete="new-password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  clearFieldError('password');
+                }}
+                error={errors.password}
+              />
+
+              <TextField
+                label="Confirm Password"
+                placeholder="Re-enter password"
+                secureTextEntry
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  clearFieldError('confirmPassword');
+                }}
+                error={errors.confirmPassword}
+              />
+
+              {/* Role selector — segmented control */}
+              <Text style={[TypographyScale.caption, styles.fieldLabel, { color: colors.textSecondary }]}>
+                Role
+              </Text>
+              <View
+                style={[
+                  styles.roleSelector,
+                  {
+                    backgroundColor: colors.surfaceSunken,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.roleOption,
+                    role === 'staff' && {
+                      backgroundColor: colors.primary,
+                      borderRadius: Radius.md - 2,
+                    },
+                  ]}
+                  onPress={() => setRole('staff')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      TypographyScale.button,
+                      {
+                        color: role === 'staff' ? colors.textOnPrimary : colors.textSecondary,
+                        fontSize: 13,
+                      },
+                    ]}
+                  >
+                    Healthcare Staff
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.roleOption,
+                    role === 'reviewer' && {
+                      backgroundColor: colors.primary,
+                      borderRadius: Radius.md - 2,
+                    },
+                  ]}
+                  onPress={() => setRole('reviewer')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      TypographyScale.button,
+                      {
+                        color: role === 'reviewer' ? colors.textOnPrimary : colors.textSecondary,
+                        fontSize: 13,
+                      },
+                    ]}
+                  >
+                    Reviewer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextField
+                label="Facility Name"
+                placeholder="Negombo Base Hospital"
+                autoCapitalize="words"
+                value={facilityName}
+                onChangeText={(text) => {
+                  setFacilityName(text);
+                  clearFieldError('facilityName');
+                }}
+                error={errors.facilityName}
+              />
+
+              <Button
+                title="Register"
+                onPress={handleRegister}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.registerButton}
+              />
+            </View>
+          </GlassCard>
+
+          {/* Footer Link */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <Link href="/(auth)/login" style={styles.link}>Sign In</Link>
+            <Text style={[TypographyScale.body, { color: colors.textSecondary }]}>
+              Already have an account?{' '}
+            </Text>
+            <Link href="/(auth)/login" style={[styles.link, { color: colors.primaryLight }]}>
+              Sign In
+            </Link>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   flex: {
     flex: 1,
   },
-  container: {
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
+    paddingVertical: Spacing.xxl,
+  },
+  header: {
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
   },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 28,
-    color: Colors.textPrimary,
+    marginBottom: Spacing.xxs,
   },
   subtitle: {
-    fontFamily: Typography.regular,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xxs,
+    textAlign: 'center',
+  },
+  card: {
     marginBottom: Spacing.lg,
   },
+  cardInner: {
+    padding: Spacing.lg,
+  },
   errorBanner: {
-    backgroundColor: Colors.riskHigh + '12',
     borderWidth: 1,
-    borderColor: Colors.riskHigh + '30',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  errorBannerText: {
-    fontFamily: Typography.medium,
-    fontSize: 13,
-    color: Colors.riskHigh,
-    lineHeight: 19,
-  },
-  form: {
-    gap: Spacing.xxs,
-  },
   fieldLabel: {
-    fontFamily: Typography.medium,
-    fontSize: 14,
-    color: Colors.textPrimary,
     marginBottom: Spacing.xxs,
+    fontWeight: '600',
   },
   roleSelector: {
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
+    padding: 3,
     marginBottom: Spacing.md,
   },
   roleOption: {
@@ -317,19 +366,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    minHeight: 48,
-  },
-  roleOptionActive: {
-    backgroundColor: Colors.primary,
-  },
-  roleText: {
-    fontFamily: Typography.medium,
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  roleTextActive: {
-    color: Colors.surface,
+    minHeight: 44,
   },
   registerButton: {
     marginTop: Spacing.xs,
@@ -337,16 +374,12 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: Spacing.lg,
-  },
-  footerText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   link: {
-    fontFamily: Typography.medium,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.primaryLight,
+    fontWeight: '600',
   },
 });
