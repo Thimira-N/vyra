@@ -161,6 +161,13 @@ export default function ReviewerLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+          title: 'Settings',
+        }}
+      />
     </Tabs>
   );
 }

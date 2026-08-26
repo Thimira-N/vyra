@@ -35,7 +35,9 @@ interface ThemeContextValue {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
   reduceMotion: boolean;
+  setReduceMotion: (enabled: boolean) => void;
   glassIntensity: GlassIntensity;
+  setGlassIntensity: (intensity: GlassIntensity) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -50,6 +52,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
   const glassIntensity = useSettingsStore((s) => s.glassIntensity);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
+  const setReduceMotion = useSettingsStore((s) => s.setReduceMotion);
+  const setGlassIntensity = useSettingsStore((s) => s.setGlassIntensity);
   const hydrate = useSettingsStore((s) => s.hydrate);
 
   // Hydrate persisted settings on mount
@@ -73,9 +77,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       mode: themeMode,
       setMode: setThemeMode,
       reduceMotion,
+      setReduceMotion,
       glassIntensity,
+      setGlassIntensity,
     }),
-    [isDark, themeMode, setThemeMode, reduceMotion, glassIntensity],
+    [isDark, themeMode, setThemeMode, reduceMotion, setReduceMotion, glassIntensity, setGlassIntensity],
   );
 
   return (
