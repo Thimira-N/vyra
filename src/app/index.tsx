@@ -5,8 +5,6 @@
  *   - If valid → GET /auth/me → decode role → redirect to (staff)/home or (reviewer)/dashboard
  *   - If consent_accepted_at is null → redirect to consent first
  *   - If none/expired → redirect to (auth)/login
- *
- * Also calls GET /health for connectivity verification (retained from F0).
  */
 
 import React, { useEffect } from 'react';
@@ -14,9 +12,13 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
 
 export default function SplashRedirectScreen() {
+  const { colors } = useTheme();
+
   useEffect(() => {
     async function initialize() {
       // Health check — connectivity verification
@@ -50,27 +52,32 @@ export default function SplashRedirectScreen() {
   }, []);
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.content}>
-        <Text style={styles.logo}>Vyra</Text>
-        <Text style={styles.subtitle}>Clinical Risk Stratification</Text>
-        <ActivityIndicator
-          size="large"
-          color={Colors.primaryLight}
-          style={styles.spinner}
-        />
+    <Screen safeArea={true}>
+      <View style={styles.screen}>
+        <View style={styles.content}>
+          <Text style={[TypographyScale.hero, styles.logo, { color: colors.primaryLight }]}>
+            Vyra
+          </Text>
+          <Text style={[TypographyScale.h3, styles.subtitle, { color: colors.textSecondary }]}>
+            Clinical Risk Stratification
+          </Text>
+          <ActivityIndicator
+            size="large"
+            color={colors.primaryLight}
+            style={styles.spinner}
+          />
+        </View>
+        <Text style={[TypographyScale.caption, styles.footer, { color: colors.textTertiary }]}>
+          Multimodal Deep Learning-Based{'\n'}Early Risk Stratification System
+        </Text>
       </View>
-      <Text style={styles.footer}>
-        Multimodal Deep Learning-Based{'\n'}Early Risk Stratification System
-      </Text>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
@@ -79,15 +86,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    fontFamily: Typography.bold,
-    fontSize: 48,
-    color: Colors.surface,
     letterSpacing: 2,
   },
   subtitle: {
-    fontFamily: Typography.regular,
-    fontSize: 15,
-    color: Colors.surface + 'CC',
     marginTop: Spacing.xs,
   },
   spinner: {
@@ -96,9 +97,6 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute',
     bottom: Spacing.xxl + Spacing.md,
-    fontFamily: Typography.regular,
-    fontSize: 12,
-    color: Colors.surface + '80',
     textAlign: 'center',
     lineHeight: 18,
   },

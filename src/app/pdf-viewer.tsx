@@ -20,20 +20,22 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  PermissionsAndroid,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { File, Directory, Paths } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { StorageAccessFramework, readAsStringAsync, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { GlassHeader } from '@/components/ui/GlassHeader';
 
 export default function PdfViewerScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { url, title } = useLocalSearchParams<{ url: string; title?: string }>();
@@ -45,8 +47,6 @@ export default function PdfViewerScreen() {
 
   const displayTitle = title || 'Clinical Report';
 
-  // Download the PDF once to local cache — the local copy is what powers
-  // the iOS in-app viewer, the print action, and the "download" action.
   const fetchPdf = useCallback(async () => {
     if (!url) {
       setError('No report URL was provided.');
@@ -74,8 +74,6 @@ export default function PdfViewerScreen() {
     fetchPdf();
   }, [fetchPdf]);
 
-  // Download: Uses PermissionsAndroid to seamlessly save directly to the public 
-  // Downloads folder on Android, matching standard mobile app behavior.
   async function handleDownload() {
     if (!localFile) return;
     setBusy('download');
@@ -85,54 +83,48 @@ export default function PdfViewerScreen() {
       } else if (Platform.OS === 'android') {
         const safeName = String(displayTitle).replace(/[^a-z0-9\-_]+/gi, '_') + '.pdf';
         
-          let savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
-          let hasPermission = false;
-          
-          if (savedUri) {
+        let savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
+        let hasPermission = false;
+        
+        if (savedUri) {
+          hasPermission = true;
+        }
+
+        if (!savedUri || !hasPermission) {
+          const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (permissions.granted) {
+            savedUri = permissions.directoryUri;
+            await SecureStore.setItemAsync('downloads_dir_uri', savedUri);
             hasPermission = true;
+          } else {
+            Alert.alert('Permission Denied', 'Storage permission is required to download files.');
+            setBusy(null);
+            return;
           }
+        }
 
-          if (!savedUri || !hasPermission) {
-            // First time - prompt user to select a folder (e.g. Downloads)
-            // SAF natively takes a persistable URI permission on Android, meaning it won't ask again!
-            const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
-            if (permissions.granted) {
-              savedUri = permissions.directoryUri;
-              await SecureStore.setItemAsync('downloads_dir_uri', savedUri);
-              hasPermission = true;
-            } else {
-              Alert.alert('Permission Denied', 'Storage permission is required to download files.');
-              setBusy(null);
-              return;
-            }
+        if (savedUri && hasPermission) {
+          try {
+            const newFileUri = await StorageAccessFramework.createFileAsync(
+              savedUri!, 
+              safeName, 
+              'application/pdf'
+            );
+            const base64Data = await readAsStringAsync(localFile.uri, { 
+              encoding: EncodingType.Base64 
+            });
+            await writeAsStringAsync(newFileUri, base64Data, { 
+              encoding: EncodingType.Base64 
+            });
+            
+            Alert.alert('Saved', `Report successfully downloaded as ${safeName}`);
+          } catch (e) {
+            console.log('SAF download failed:', e);
+            await SecureStore.deleteItemAsync('downloads_dir_uri');
+            Alert.alert('Download failed', 'Unable to save the report. Please try again.');
           }
-
-          if (savedUri && hasPermission) {
-            try {
-              // Create the file in the selected directory
-              const newFileUri = await StorageAccessFramework.createFileAsync(
-                savedUri!, 
-                safeName, 
-                'application/pdf'
-              );
-              // Read local file and write to the SAF URI
-              const base64Data = await readAsStringAsync(localFile.uri, { 
-                encoding: EncodingType.Base64 
-              });
-              await writeAsStringAsync(newFileUri, base64Data, { 
-                encoding: EncodingType.Base64 
-              });
-              
-              Alert.alert('Saved', `Report successfully downloaded as ${safeName}`);
-            } catch (e) {
-              console.log('SAF download failed:', e);
-              // Clear stored permission so it prompts again next time
-              await SecureStore.deleteItemAsync('downloads_dir_uri');
-              Alert.alert('Download failed', 'Unable to save the report. Please try again.');
-            }
-          }
+        }
       } else {
-        // iOS doesn't allow blind writes to a public "Downloads" folder due to sandboxing.
         await Sharing.shareAsync(localFile.uri, {
           mimeType: 'application/pdf',
           dialogTitle: 'Save report',
@@ -147,9 +139,6 @@ export default function PdfViewerScreen() {
     }
   }
 
-  // Share: Because iOS and modern Android heavily restrict silent downloads to public folders,
-  // the standard mobile paradigm is to use the native Share sheet. This allows the user to
-  // send the PDF via WhatsApp, Email, or use "Save to Files" / "Save to Downloads".
   async function handleShare() {
     if (!localFile) return;
     setBusy('share');
@@ -171,9 +160,6 @@ export default function PdfViewerScreen() {
     }
   }
 
-  // Print: expo-print can print directly from an existing PDF file URI —
-  // no HTML conversion needed — and opens the native OS print dialog
-  // (AirPrint on iOS, the system print service on Android).
   async function handlePrint() {
     if (!localFile) return;
     setBusy('print');
@@ -186,11 +172,6 @@ export default function PdfViewerScreen() {
     }
   }
 
-  // In-app rendering: iOS's WKWebView renders local PDF files natively.
-  // Android's WebView does not reliably render local file:// PDFs across
-  // OS versions, so on Android we render the remote URL through Google's
-  // Docs Viewer, which is the standard, dependency-free way to get inline
-  // PDF rendering inside a plain WebView on Android.
   const webSource =
     Platform.OS === 'android'
       ? { uri: `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(String(url))}` }
@@ -199,12 +180,17 @@ export default function PdfViewerScreen() {
         : null;
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.xs }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
-          <Ionicons name="close" size={24} color={Colors.surface} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.xs, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerBtn}
+          hitSlop={12}
+          accessibilityLabel="Close report viewer"
+        >
+          <Ionicons name="close" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[TypographyScale.body, styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
           {displayTitle}
         </Text>
         <View style={styles.headerActions}>
@@ -213,14 +199,15 @@ export default function PdfViewerScreen() {
             style={styles.headerBtn}
             disabled={!localFile || !!busy}
             hitSlop={12}
+            accessibilityLabel="Print report"
           >
             {busy === 'print' ? (
-              <ActivityIndicator color={Colors.surface} size="small" />
+              <ActivityIndicator color={colors.primary} size="small" />
             ) : (
               <Ionicons
                 name="print-outline"
                 size={22}
-                color={!localFile ? Colors.border : Colors.surface}
+                color={!localFile ? colors.textTertiary : colors.primaryLight}
               />
             )}
           </TouchableOpacity>
@@ -229,14 +216,15 @@ export default function PdfViewerScreen() {
             style={styles.headerBtn}
             disabled={!localFile || !!busy}
             hitSlop={12}
+            accessibilityLabel="Download report"
           >
             {busy === 'download' ? (
-              <ActivityIndicator color={Colors.surface} size="small" />
+              <ActivityIndicator color={colors.primary} size="small" />
             ) : (
               <Ionicons
                 name="download-outline"
                 size={22}
-                color={!localFile ? Colors.border : Colors.surface}
+                color={!localFile ? colors.textTertiary : colors.primaryLight}
               />
             )}
           </TouchableOpacity>
@@ -245,14 +233,15 @@ export default function PdfViewerScreen() {
             style={styles.headerBtn}
             disabled={!localFile || !!busy}
             hitSlop={12}
+            accessibilityLabel="Share report"
           >
             {busy === 'share' ? (
-              <ActivityIndicator color={Colors.surface} size="small" />
+              <ActivityIndicator color={colors.primary} size="small" />
             ) : (
               <Ionicons
                 name="share-outline"
                 size={22}
-                color={!localFile ? Colors.border : Colors.surface}
+                color={!localFile ? colors.textTertiary : colors.primaryLight}
               />
             )}
           </TouchableOpacity>
@@ -260,18 +249,22 @@ export default function PdfViewerScreen() {
       </View>
 
       {loading && (
-        <View style={styles.centered}>
-          <ActivityIndicator color={Colors.primary} size="large" />
-          <Text style={styles.statusText}>Loading report…</Text>
+        <View style={[styles.centered, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={[TypographyScale.body, styles.statusText, { color: colors.textSecondary }]}>Loading report…</Text>
         </View>
       )}
 
       {!loading && error && (
-        <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={32} color={Colors.riskHigh} />
-          <Text style={styles.statusText}>{error}</Text>
-          <TouchableOpacity onPress={fetchPdf} style={styles.retryBtn}>
-            <Text style={styles.retryLabel}>Retry</Text>
+        <View style={[styles.centered, { backgroundColor: colors.background }]}>
+          <Ionicons name="alert-circle-outline" size={32} color={colors.danger} />
+          <Text style={[TypographyScale.body, styles.statusText, { color: colors.danger }]}>{error}</Text>
+          <TouchableOpacity
+            onPress={fetchPdf}
+            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
+            accessibilityLabel="Retry loading report"
+          >
+            <Text style={[TypographyScale.button, styles.retryLabel, { color: colors.textOnPrimary }]}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -280,18 +273,18 @@ export default function PdfViewerScreen() {
         Platform.OS === 'web' ? (
           <iframe
             src={webSource.uri}
-            style={{ width: '100%', height: '100%', border: 'none' }}
+            style={{ width: '100%', height: '100%', border: 'none', backgroundColor: colors.surface }}
             title="PDF Report"
           />
         ) : (
           <WebView
             source={webSource}
-            style={styles.webview}
+            style={[styles.webview, { backgroundColor: colors.surface }]}
             originWhitelist={['*']}
             startInLoadingState
             renderLoading={() => (
-              <View style={styles.centered}>
-                <ActivityIndicator color={Colors.primary} size="large" />
+              <View style={[styles.centered, { backgroundColor: colors.background }]}>
+                <ActivityIndicator color={colors.primary} size="large" />
               </View>
             )}
             onError={() => setError('Unable to display the PDF report.')}
@@ -303,36 +296,31 @@ export default function PdfViewerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.textPrimary },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    backgroundColor: Colors.primary,
+    borderBottomWidth: 1,
   },
   headerBtn: { padding: Spacing.xs, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerTitle: {
     flex: 1,
     marginHorizontal: Spacing.sm,
-    color: Colors.surface,
-    fontFamily: Typography.semiBold,
-    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
   },
-  webview: { flex: 1, backgroundColor: Colors.surface },
+  webview: { flex: 1 },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.background,
     padding: Spacing.lg,
   },
   statusText: {
-    fontFamily: Typography.medium,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
@@ -340,8 +328,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
+    borderRadius: Radius.md,
   },
-  retryLabel: { color: Colors.surface, fontFamily: Typography.semiBold },
+  retryLabel: {},
 });

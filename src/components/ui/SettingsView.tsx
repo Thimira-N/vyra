@@ -209,7 +209,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
                   value={reduceMotion}
                   onValueChange={setReduceMotion}
                   trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor="#ffffff"
+                  thumbColor={colors.surface}
                 />
               </View>
 
@@ -276,7 +276,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
                   value={notificationPrefs.pushEnabled}
                   onValueChange={(val) => setNotificationPrefs({ pushEnabled: val })}
                   trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor="#ffffff"
+                  thumbColor={colors.surface}
                 />
               </View>
 
@@ -298,7 +298,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
                         value={notificationPrefs.newCaseAssigned}
                         onValueChange={(val) => setNotificationPrefs({ newCaseAssigned: val })}
                         trackColor={{ false: colors.border, true: colors.primary }}
-                        thumbColor="#ffffff"
+                        thumbColor={colors.surface}
                       />
                     </View>
                   ) : (
@@ -315,7 +315,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
                         value={notificationPrefs.assessmentReviewed}
                         onValueChange={(val) => setNotificationPrefs({ assessmentReviewed: val })}
                         trackColor={{ false: colors.border, true: colors.primary }}
-                        thumbColor="#ffffff"
+                        thumbColor={colors.surface}
                       />
                     </View>
                   )}
@@ -335,7 +335,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
                       value={notificationPrefs.systemAnnouncements}
                       onValueChange={(val) => setNotificationPrefs({ systemAnnouncements: val })}
                       trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor="#ffffff"
+                      thumbColor={colors.surface}
                     />
                   </View>
                 </>

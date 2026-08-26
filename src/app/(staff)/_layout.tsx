@@ -34,7 +34,7 @@ function NotificationBell() {
             },
           ]}
         >
-          <Text style={styles.badgeText}>
+          <Text style={[styles.badgeText, { color: colors.surface }]}>
             {unreadCount > 99 ? '99+' : unreadCount}
           </Text>
         </View>
@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   badgeText: {
-    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
   },
