@@ -1,22 +1,27 @@
 /**
- * Step 4: Review & Submit — Spec §6.2
+ * Step 4: Review & Submit — Spec §6.2, UI Upgrade U4
  *
- * Read-only summary of everything entered across steps 1–3 with
- * per-section "Edit" links (jumps back). Final "Submit for Analysis"
- * button. Navigates to analyzing screen which calls POST /assessments.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - ProgressSteps indicator
+ * - Summary sections in elevated GlassCards with jump-back edit links
+ * - Safe area & bottom clearance
+ * - Preserved logic: draftStore retrieval, submit navigation to analyzing
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { router, Link } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import Button from '@/components/ui/Button';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
-/** Format vital signs for display */
 function formatVitals(vitals: Record<string, number>): string {
   const labels: Record<string, string> = {
     HR: 'Heart Rate',
@@ -35,6 +40,7 @@ function formatVitals(vitals: Record<string, number>): string {
 }
 
 export default function ReviewSubmitScreen() {
+  const { colors } = useTheme();
   const patient = useAssessmentDraftStore((s) => s.patient);
   const symptoms_text = useAssessmentDraftStore((s) => s.symptoms_text);
   const imageUri = useAssessmentDraftStore((s) => s.imageUri);
@@ -45,71 +51,88 @@ export default function ReviewSubmitScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      <ProgressSteps steps={STEPS} currentStep={4} />
+    <Screen safeArea={true}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <ProgressSteps steps={STEPS} currentStep={4} />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Review & Submit</Text>
-        <Text style={styles.description}>
-          Confirm all information before submitting for analysis.
-        </Text>
+        <View style={styles.content}>
+          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+            Review & Submit
+          </Text>
+          <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
+            Confirm all information before submitting for analysis.
+          </Text>
 
-        {/* Patient summary */}
-        <SummarySection title="Patient Info" editRoute="/(staff)/new-assessment/patient-info">
-          {patient ? (
-            <>
-              <Text style={styles.summaryText}>{patient.full_name}</Text>
-              <Text style={styles.summaryMeta}>
-                {patient.patient_ref} · {patient.sex} · Age {patient.age}
-                {patient.phone ? ` · ${patient.phone}` : ''}
+          {/* Patient summary */}
+          <SummarySection title="Patient Info" editRoute="/(staff)/new-assessment/patient-info">
+            {patient ? (
+              <>
+                <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
+                  {patient.full_name}
+                </Text>
+                <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                  {patient.patient_ref} · {patient.sex} · Age {patient.age}
+                  {patient.phone ? ` · ${patient.phone}` : ''}
+                </Text>
+              </>
+            ) : (
+              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
+                No patient selected
               </Text>
-            </>
-          ) : (
-            <Text style={styles.missingText}>No patient selected</Text>
-          )}
-        </SummarySection>
+            )}
+          </SummarySection>
 
-        {/* Symptoms summary */}
-        <SummarySection title="Symptoms" editRoute="/(staff)/new-assessment/symptoms">
-          {symptoms_text ? (
-            <Text style={styles.summaryText} numberOfLines={5}>
-              {symptoms_text}
-            </Text>
-          ) : (
-            <Text style={styles.missingText}>No symptoms entered</Text>
-          )}
-        </SummarySection>
+          {/* Symptoms summary */}
+          <SummarySection title="Symptoms" editRoute="/(staff)/new-assessment/symptoms">
+            {symptoms_text ? (
+              <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 21 }]} numberOfLines={5}>
+                {symptoms_text}
+              </Text>
+            ) : (
+              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
+                No symptoms entered
+              </Text>
+            )}
+          </SummarySection>
 
-        {/* Image summary */}
-        <SummarySection title="Clinical Image" editRoute="/(staff)/new-assessment/image-capture">
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.imageThumbnail} resizeMode="cover" />
-          ) : (
-            <Text style={styles.summaryMeta}>No image (optional — will use partial-modality analysis)</Text>
-          )}
-        </SummarySection>
+          {/* Image summary */}
+          <SummarySection title="Clinical Image" editRoute="/(staff)/new-assessment/image-capture">
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={[styles.imageThumbnail, { backgroundColor: colors.surfaceSunken }]} resizeMode="cover" />
+            ) : (
+              <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, fontStyle: 'italic' }]}>
+                No image (optional — will use partial-modality analysis)
+              </Text>
+            )}
+          </SummarySection>
 
-        {/* Vitals summary */}
-        <SummarySection title="Vital Signs" editRoute="/(staff)/new-assessment/vitals">
-          {Object.keys(vitals).length > 0 ? (
-            <Text style={styles.summaryText}>{formatVitals(vitals)}</Text>
-          ) : (
-            <Text style={styles.missingText}>No vitals entered</Text>
-          )}
-        </SummarySection>
+          {/* Vitals summary */}
+          <SummarySection title="Vital Signs" editRoute="/(staff)/new-assessment/vitals">
+            {Object.keys(vitals).length > 0 ? (
+              <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 22, fontVariant: ['tabular-nums'] }]}>
+                {formatVitals(vitals)}
+              </Text>
+            ) : (
+              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
+                No vitals entered
+              </Text>
+            )}
+          </SummarySection>
 
-        {/* Submit */}
-        <Button
-          title="Submit for Analysis"
-          onPress={handleSubmit}
-          disabled={!patient || !symptoms_text}
-        />
-      </View>
-    </ScrollView>
+          {/* Submit */}
+          <Button
+            title="Submit for Analysis"
+            onPress={handleSubmit}
+            disabled={!patient || !symptoms_text}
+            style={styles.submitButton}
+          />
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
@@ -122,92 +145,67 @@ function SummarySection({
   editRoute: string;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={[summaryStyles.card, Shadows.card]}>
-      <View style={summaryStyles.header}>
-        <Text style={summaryStyles.title}>{title}</Text>
-        <Link href={editRoute as any} style={summaryStyles.editLink}>
-          Edit
-        </Link>
+    <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.summaryCard}>
+      <View style={styles.summaryInner}>
+        <View style={styles.summaryHeader}>
+          <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>{title}</Text>
+          <Link href={editRoute as any} style={[styles.editLink, { color: colors.primaryLight }]}>
+            Edit
+          </Link>
+        </View>
+        {children}
       </View>
-      {children}
-    </View>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   container: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 96,
   },
   content: {
     marginTop: Spacing.md,
   },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 22,
-    color: Colors.textPrimary,
     marginBottom: Spacing.xxs,
   },
   description: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
     marginBottom: Spacing.lg,
   },
-  summaryText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 21,
-  },
-  summaryMeta: {
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  missingText: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.riskMedium,
-    fontStyle: 'italic',
-  },
-  imageThumbnail: {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-    backgroundColor: Colors.border,
-  },
-});
-
-const summaryStyles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
+  summaryCard: {
     marginBottom: Spacing.sm,
   },
-  header: {
+  summaryInner: {
+    padding: Spacing.md,
+  },
+  summaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  title: {
-    fontFamily: Typography.semiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
   editLink: {
-    fontFamily: Typography.medium,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.primaryLight,
+    fontWeight: '600',
+  },
+  missingText: {
+    fontStyle: 'italic',
+  },
+  imageThumbnail: {
+    width: '100%',
+    height: 160,
+    borderRadius: Radius.md,
+  },
+  submitButton: {
+    marginTop: Spacing.md,
   },
 });

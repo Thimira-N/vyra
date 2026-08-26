@@ -1,17 +1,22 @@
 /**
- * Step 2: Image Capture — Spec §6.2
+ * Step 2: Image Capture — Spec §6.2, UI Upgrade U4
  *
- * Two options: "Take Photo" (expo-camera via image-picker) or
- * "Choose from Gallery" (expo-image-picker).
- * Preview thumbnail with retake option.
- * Step is SKIPPABLE — "Continue without image" link.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - ProgressSteps indicator
+ * - Capture card & image preview inside elevated GlassCards
+ * - Safe area & bottom clearance
+ * - Preserved logic: camera/gallery permissions, draftStore persistence, skippable option
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import Button from '@/components/ui/Button';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
@@ -19,6 +24,7 @@ import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
 export default function ImageCaptureScreen() {
+  const { colors } = useTheme();
   const storedUri = useAssessmentDraftStore((s) => s.imageUri);
   const setImage = useAssessmentDraftStore((s) => s.setImage);
 
@@ -81,130 +87,127 @@ export default function ImageCaptureScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.container}>
+    <Screen safeArea={true}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <ProgressSteps steps={STEPS} currentStep={2} />
 
         <View style={styles.content}>
-          <Text style={styles.title}>Clinical Image</Text>
-          <Text style={styles.description}>
+          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+            Clinical Image
+          </Text>
+          <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
             Capture or upload a clinical image for visual analysis.
             This step is optional — the system supports partial-modality assessment.
           </Text>
 
           {imageUri ? (
-            // Preview
-            <View style={styles.previewContainer}>
-              <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="cover" />
-              <View style={styles.previewActions}>
-                <Button title="Retake / Change" onPress={handleRetake} variant="outline" />
+            <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.previewCard}>
+              <View style={styles.cardInner}>
+                <Image source={{ uri: imageUri }} style={[styles.preview, { backgroundColor: colors.surfaceSunken }]} resizeMode="cover" />
+                <Button title="Retake / Change Image" onPress={handleRetake} variant="outline" />
               </View>
-            </View>
+            </GlassCard>
           ) : (
-            // Capture area
-            <View style={[styles.captureArea, Shadows.card]}>
-              <Text style={styles.captureIcon}>📷</Text>
-              <Text style={styles.captureTitle}>No image selected</Text>
-              <View style={styles.captureButtons}>
-                <Button title="Take Photo" onPress={handleTakePhoto} variant="primary" />
-                <Button title="Choose from Gallery" onPress={handleChooseGallery} variant="outline" />
+            <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.captureCard}>
+              <View style={styles.captureInner}>
+                <Text style={styles.captureIcon}>📷</Text>
+                <Text style={[TypographyScale.h3, styles.captureTitle, { color: colors.textPrimary }]}>
+                  No image selected
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg }]}>
+                  Take a photo or choose an existing clinical photograph from your gallery.
+                </Text>
+                <View style={styles.captureButtons}>
+                  <Button title="Take Photo" onPress={handleTakePhoto} variant="primary" />
+                  <Button title="Choose from Gallery" onPress={handleChooseGallery} variant="outline" />
+                </View>
               </View>
-            </View>
+            </GlassCard>
           )}
-        </View>
-      </View>
 
-      {/* Bottom navigation */}
-      <View style={styles.footer}>
-        <Button title={imageUri ? 'Next: Vitals →' : 'Continue with Image →'} onPress={handleNext} disabled={!imageUri} />
-        <Text onPress={handleSkip} style={styles.skipLink}>
-          Continue without image →
-        </Text>
-      </View>
-    </View>
+          <View style={styles.actions}>
+            <Button
+              title={imageUri ? 'Next: Vitals →' : 'Continue with Image →'}
+              onPress={handleNext}
+              disabled={!imageUri}
+            />
+            <Text
+              onPress={handleSkip}
+              style={[
+                TypographyScale.button,
+                styles.skipLink,
+                { color: colors.primaryLight },
+              ]}
+            >
+              Continue without image →
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  scroll: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   container: {
-    flex: 1,
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 96,
   },
   content: {
-    flex: 1,
     marginTop: Spacing.md,
   },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 22,
-    color: Colors.textPrimary,
     marginBottom: Spacing.xxs,
   },
   description: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
     lineHeight: 21,
     marginBottom: Spacing.lg,
   },
-
-  // Preview
-  previewContainer: {
-    alignItems: 'center',
+  previewCard: {
+    marginBottom: Spacing.lg,
+  },
+  cardInner: {
+    padding: Spacing.md,
   },
   preview: {
     width: '100%',
     height: 280,
-    borderRadius: 12,
-    backgroundColor: Colors.border,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
   },
-  previewActions: {
-    width: '100%',
+  captureCard: {
+    marginBottom: Spacing.lg,
   },
-
-  // Capture area
-  captureArea: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
+  captureInner: {
     padding: Spacing.xl,
     alignItems: 'center',
   },
   captureIcon: {
     fontSize: 48,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   captureTitle: {
-    fontFamily: Typography.medium,
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xxs,
   },
   captureButtons: {
     width: '100%',
     gap: Spacing.sm,
   },
-
-  // Footer
-  footer: {
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.surface,
+  actions: {
+    marginTop: Spacing.sm,
+    gap: Spacing.md,
   },
   skipLink: {
-    fontFamily: Typography.medium,
-    fontSize: 14,
-    color: Colors.primaryLight,
     textAlign: 'center',
-    marginTop: Spacing.sm,
-    paddingVertical: Spacing.xxs,
+    paddingVertical: Spacing.xs,
+    fontSize: 14,
   },
 });

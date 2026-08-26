@@ -1,35 +1,42 @@
 /**
- * Notification Center Screen
- * 
- * Displays historical notifications (toasts/pushes) inside the app.
+ * Notification Center Screen — Spec §6.2, UI Upgrade U4
+ *
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - Notification items in GlassCards with semantic risk/status iconography
+ * - Header clearance and floating tab bar padding
+ * - Preserved logic: markAllAsRead on open, clearAll action
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
-import { useNotificationStore, AppNotification } from '@/store/notificationStore';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useNotificationStore, type AppNotification } from '@/store/notificationStore';
 
 export default function NotificationsScreen() {
+  const { colors } = useTheme();
   const { notifications, markAllAsRead, clearAll } = useNotificationStore();
 
   useEffect(() => {
-    // Mark all as read when user opens the screen
     markAllAsRead();
   }, [markAllAsRead]);
 
   const renderIcon = (type: AppNotification['type']) => {
     switch (type) {
       case 'success':
-        return <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />;
+        return <Ionicons name="checkmark-circle" size={24} color={colors.riskLow} />;
       case 'error':
-        return <Ionicons name="close-circle" size={24} color={Colors.riskHigh} />;
+        return <Ionicons name="close-circle" size={24} color={colors.riskHigh} />;
       case 'warning':
-        return <Ionicons name="warning" size={24} color={Colors.riskMedium} />;
+        return <Ionicons name="warning" size={24} color={colors.riskMedium} />;
       case 'info':
       default:
-        return <Ionicons name="information-circle" size={24} color={Colors.primaryLight} />;
+        return <Ionicons name="information-circle" size={24} color={colors.primaryLight} />;
     }
   };
 
@@ -42,114 +49,93 @@ export default function NotificationsScreen() {
     });
 
     return (
-      <View style={[styles.card, Shadows.card]}>
-        <View style={styles.iconContainer}>{renderIcon(item.type)}</View>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.body}>{item.body}</Text>
-          <Text style={styles.date}>{date}</Text>
+      <GlassCard tint="default" elevation="raised" radius="md" style={styles.notificationCard}>
+        <View style={styles.cardInner}>
+          <View style={styles.iconContainer}>{renderIcon(item.type)}</View>
+          <View style={styles.textContainer}>
+            <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
+              {item.title}
+            </Text>
+            <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, marginTop: 2 }]}>
+              {item.body}
+            </Text>
+            <Text style={[TypographyScale.caption, { color: colors.textTertiary, marginTop: 4 }]}>
+              {date}
+            </Text>
+          </View>
         </View>
-      </View>
+      </GlassCard>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <Screen safeArea={false}>
       <Stack.Screen
         options={{
           title: 'Notifications',
           headerShown: true,
-          headerRight: () => (
+          headerRight: () =>
             notifications.length > 0 ? (
-              <TouchableOpacity onPress={clearAll} style={{ marginRight: Spacing.md }}>
-                <Text style={styles.clearText}>Clear All</Text>
+              <TouchableOpacity onPress={clearAll} style={styles.clearButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={[TypographyScale.button, { color: colors.primaryLight, fontSize: 14 }]}>
+                  Clear All
+                </Text>
               </TouchableOpacity>
-            ) : null
-          ),
+            ) : null,
         }}
       />
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={64} color={Colors.border} />
-          <Text style={styles.emptyTitle}>All caught up!</Text>
-          <Text style={styles.emptyBody}>You have no new notifications.</Text>
+          <Ionicons name="notifications-off-outline" size={64} color={colors.borderStrong} />
+          <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.lg }]}>
+            All caught up!
+          </Text>
+          <Text style={[TypographyScale.body, { color: colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs }]}>
+            You have no new notifications.
+          </Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? 96 : 84, // Header clearance
+    paddingBottom: 96, // Floating TabBar clearance
   },
-  list: {
-    padding: Spacing.md,
-  },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: 12,
+  notificationCard: {
     marginBottom: Spacing.sm,
   },
+  cardInner: {
+    flexDirection: 'row',
+    padding: Spacing.md,
+  },
   iconContainer: {
-    marginRight: Spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginRight: Spacing.md,
+    justifyContent: 'flex-start',
+    paddingTop: 2,
   },
   textContainer: {
     flex: 1,
   },
-  title: {
-    fontFamily: Typography.semiBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  body: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  date: {
-    fontFamily: Typography.medium,
-    fontSize: 12,
-    color: Colors.border,
-  },
-  clearText: {
-    fontFamily: Typography.semiBold,
-    color: Colors.surface,
-    fontSize: 14,
+  clearButton: {
+    marginRight: Spacing.md,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xxl,
-  },
-  emptyTitle: {
-    fontFamily: Typography.semiBold,
-    fontSize: 20,
-    color: Colors.textPrimary,
-    marginTop: Spacing.lg,
-  },
-  emptyBody: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
   },
 });

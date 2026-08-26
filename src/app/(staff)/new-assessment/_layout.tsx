@@ -1,25 +1,34 @@
 /**
  * New Assessment — Stack layout enforcing step order.
- * Spec §4: "Stack — enforces step order"
+ * Spec §4, §7: "Stack with translucent GlassHeader and theme tokens"
  *
  * Steps: Patient Info → Symptoms → Image → Vitals → Review → Analyzing → Result
  */
 
+import React from 'react';
 import { Stack } from 'expo-router';
-import { Colors, Typography } from '@/constants/theme';
+import { StyleSheet } from 'react-native';
+import { useTheme } from '@/hooks/use-theme';
+import { GlassHeader } from '@/components/ui/GlassHeader';
+import { TypographyScale } from '@/constants/theme';
 
 export default function NewAssessmentLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: Colors.surface },
-        headerTintColor: Colors.textPrimary,
+        headerShown: false,
+        headerTransparent: true,
+        headerBackground: () => <GlassHeader style={StyleSheet.absoluteFill} />,
+        headerTintColor: colors.textPrimary,
         headerTitleStyle: {
-          fontFamily: Typography.semiBold,
-          fontSize: 17,
+          fontFamily: TypographyScale.h3.fontFamily,
+          fontSize: TypographyScale.h3.fontSize,
+          color: colors.textPrimary,
         },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: Colors.background },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen name="patient-info" options={{ title: 'Patient Info' }} />

@@ -1,15 +1,21 @@
 /**
- * Step 3: Vitals — Spec §6.2
+ * Step 3: Vitals — Spec §6.2, UI Upgrade U4
  *
- * Uses VitalsInputGrid component for HR, O2Sat, Temp, SBP, DBP, Resp
- * with normal ranges as helper text. Expandable advanced section for
- * MAP, Age, etc. Values stored in draft store on "Next".
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - ProgressSteps indicator
+ * - VitalsInputGrid wrapped in elevated GlassCard
+ * - Safe area & bottom clearance
+ * - Preserved logic: core vitals validation, draftStore persistence
  */
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import Button from '@/components/ui/Button';
 import VitalsInputGrid from '@/components/ui/VitalsInputGrid';
@@ -18,6 +24,7 @@ import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
 export default function VitalsScreen() {
+  const { colors } = useTheme();
   const storedVitals = useAssessmentDraftStore((s) => s.vitals);
   const setVitalsStore = useAssessmentDraftStore((s) => s.setVitals);
 
@@ -25,7 +32,6 @@ export default function VitalsScreen() {
   const [error, setError] = useState('');
 
   function handleNext() {
-    // At least one core vital should be entered
     const coreKeys = ['HR', 'O2Sat', 'Temp', 'SBP', 'DBP', 'Resp'];
     const hasAnyCoreVital = coreKeys.some((k) => vitals[k] !== undefined);
 
@@ -39,86 +45,82 @@ export default function VitalsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ProgressSteps steps={STEPS} currentStep={3} />
+    <Screen safeArea={true}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ProgressSteps steps={STEPS} currentStep={3} />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Vital Signs</Text>
-        <Text style={styles.description}>
-          Enter the patient's current vital signs measurements.
-        </Text>
+        <View style={styles.content}>
+          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+            Vital Signs
+          </Text>
+          <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
+            Enter the patient's current vital signs measurements.
+          </Text>
 
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+          {error ? (
+            <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.danger}35` }]}>
+              <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
-        <View style={[styles.card, Shadows.card]}>
-          <VitalsInputGrid
-            values={vitals}
-            onChange={(v) => {
-              setVitals(v);
-              if (error) setError('');
-            }}
-          />
+          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.vitalsCard}>
+            <View style={styles.cardInner}>
+              <VitalsInputGrid
+                values={vitals}
+                onChange={(v) => {
+                  setVitals(v);
+                  if (error) setError('');
+                }}
+              />
+            </View>
+          </GlassCard>
+
+          <Button title="Next: Review →" onPress={handleNext} style={styles.nextButton} />
         </View>
-
-        <Button title="Next: Review →" onPress={handleNext} />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   container: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 96,
   },
   content: {
     marginTop: Spacing.md,
   },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 22,
-    color: Colors.textPrimary,
     marginBottom: Spacing.xxs,
   },
   description: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
+    lineHeight: 21,
     marginBottom: Spacing.lg,
   },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
+  vitalsCard: {
     marginBottom: Spacing.lg,
+  },
+  cardInner: {
+    padding: Spacing.md,
   },
   errorBanner: {
-    backgroundColor: Colors.riskHigh + '12',
     borderWidth: 1,
-    borderColor: Colors.riskHigh + '30',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  errorText: {
-    fontFamily: Typography.medium,
-    fontSize: 13,
-    color: Colors.riskHigh,
-    lineHeight: 19,
+  nextButton: {
+    marginTop: Spacing.xs,
   },
 });

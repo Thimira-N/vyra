@@ -1,10 +1,13 @@
 /**
- * History Detail — Spec §6.2
+ * History Detail — Spec §6.2, UI Upgrade U4
  *
- * Full assessment detail, same rich layout as Staff Result screen, read-only.
- * Plus the reviewer's clinical notes section if `status === "reviewed"`.
- * Calls `GET /assessments/{id}`.
- * Has explicit Loading, Error, and Empty states.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - Rich assessment detail in GlassCards with RiskBadge and RiskProbabilityBar
+ * - Modality breakdowns in collapsible GlassCards
+ * - Grad-CAM visualization in GlassCard
+ * - ReportViewerButton & Back navigation
+ * - Safe area & bottom clearance
  */
 
 import React, { useEffect, useState } from 'react';
@@ -15,27 +18,28 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  Linking,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows, getRiskColor, type RiskLevel } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius, getRiskColor, type RiskLevel } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import RiskBadge from '@/components/ui/RiskBadge';
 import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import Button from '@/components/ui/Button';
 import ReportViewerButton from '@/components/ui/ReportViewerButton';
 import { getAssessmentById, type AssessmentOut } from '@/services/assessmentsApi';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function HistoryDetailScreen() {
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [assessment, setAssessment] = useState<AssessmentOut | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     image: true,
     text: true,
@@ -68,23 +72,33 @@ export default function HistoryDetailScreen() {
   // Loading State
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading details...</Text>
-      </View>
+      <Screen safeArea={true}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[TypographyScale.body, { color: colors.textSecondary, marginTop: Spacing.md }]}>
+            Loading details...
+          </Text>
+        </View>
+      </Screen>
     );
   }
 
   // Error State
   if (error || !assessment) {
     return (
-      <View style={styles.centerContainer}>
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error || 'Assessment not found.'}</Text>
+      <Screen safeArea={true}>
+        <View style={styles.centerContainer}>
+          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.errorCard}>
+            <View style={styles.errorInner}>
+              <Text style={[TypographyScale.body, { color: colors.danger, textAlign: 'center' }]}>
+                {error || 'Assessment not found.'}
+              </Text>
+              <Button title="Retry" onPress={fetchDetail} variant="outline" style={{ marginTop: Spacing.md, marginBottom: Spacing.xs, width: '100%' }} />
+              <Button title="Go Back" onPress={() => router.back()} variant="primary" style={{ width: '100%' }} />
+            </View>
+          </GlassCard>
         </View>
-        <Button title="Retry" onPress={fetchDetail} variant="outline" style={styles.retryButton} />
-        <Button title="Go Back" onPress={() => router.back()} variant="primary" />
-      </View>
+      </Screen>
     );
   }
 
@@ -93,184 +107,231 @@ export default function HistoryDetailScreen() {
   const dateStr = new Date(created_at).toLocaleString();
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Meta header */}
-      <View style={styles.metaHeader}>
-        <Text style={styles.refText}>{assessment_ref}</Text>
-        <Text style={styles.dateText}>{dateStr}</Text>
-      </View>
-
-      {/* Reviewer Notes (Only if reviewed) */}
-      {status === 'reviewed' && review && (
-        <View style={[styles.reviewCard, Shadows.card]}>
-          <View style={styles.reviewHeader}>
-            <Ionicons name="checkmark-circle" size={20} color={Colors.riskLow} />
-            <Text style={styles.reviewTitle}>Reviewer Notes</Text>
-          </View>
-          <Text style={styles.reviewText}>{review.clinical_notes || 'No clinical notes provided.'}</Text>
-          {review.reviewer_risk_override && (
-            <View style={styles.overrideRow}>
-              <Text style={styles.overrideLabel}>Risk Override:</Text>
-              <RiskBadge level={review.reviewer_risk_override as RiskLevel} size="small" />
-            </View>
-          )}
-          <Text style={styles.reviewDate}>
-            Reviewed on {new Date(review.reviewed_at).toLocaleString()}
+    <Screen safeArea={true}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Meta header */}
+        <View style={styles.metaHeader}>
+          <Text style={[TypographyScale.caption, { color: colors.textSecondary, fontWeight: '600' }]}>
+            {assessment_ref}
+          </Text>
+          <Text style={[TypographyScale.caption, { color: colors.textSecondary }]}>
+            {dateStr}
           </Text>
         </View>
-      )}
 
-      {/* Risk header */}
-      <View style={styles.riskHeader}>
-        <RiskBadge level={result.overall_risk as RiskLevel} size="large" />
-        <Text style={[styles.triageTier, { color: riskColor }]}>
-          {result.triage_tier} — Triage Tier
-        </Text>
-        <Text style={styles.confidence}>
-          Confidence: {result.confidence_pct.toFixed(1)}% · {result.fusion_method}
-        </Text>
-      </View>
-
-      {/* Risk probability bar */}
-      <View style={[styles.card, Shadows.card]}>
-        <Text style={styles.cardTitle}>Risk Probability Distribution</Text>
-        <RiskProbabilityBar probabilities={result.risk_probabilities} />
-      </View>
-
-      {/* Per-modality findings */}
-      {result.per_modality.image && (
-        <CollapsibleSection
-          title="Image Finding"
-          expanded={expandedSections.image}
-          onToggle={() => toggleSection('image')}
-        >
-          <View style={styles.modalityRow}>
-            <RiskBadge level={result.per_modality.image.risk as RiskLevel} size="small" />
-            <Text style={styles.modalityDetail}>
-              Confidence: {result.per_modality.image.confidence_pct.toFixed(1)}%
-            </Text>
-          </View>
-          <Text style={styles.modalityText}>{result.per_modality.image.finding}</Text>
-        </CollapsibleSection>
-      )}
-
-      {result.per_modality.text && (
-        <CollapsibleSection
-          title="Symptom Match"
-          expanded={expandedSections.text}
-          onToggle={() => toggleSection('text')}
-        >
-          <View style={styles.modalityRow}>
-            <RiskBadge level={result.per_modality.text.risk as RiskLevel} size="small" />
-            <Text style={styles.modalityDetail}>
-              Confidence: {result.per_modality.text.confidence_pct.toFixed(1)}%
-            </Text>
-          </View>
-          <Text style={styles.modalityText}>
-            Matched condition: {result.per_modality.text.match}
-          </Text>
-        </CollapsibleSection>
-      )}
-
-      {result.per_modality.vitals && (
-        <CollapsibleSection
-          title="Vitals Flags"
-          expanded={expandedSections.vitals}
-          onToggle={() => toggleSection('vitals')}
-        >
-          <View style={styles.modalityRow}>
-            <RiskBadge level={result.per_modality.vitals.risk as RiskLevel} size="small" />
-            <Text style={styles.modalityDetail}>
-              Flags: {result.per_modality.vitals.flags}
-            </Text>
-          </View>
-          {result.per_modality.vitals.flagged_vitals?.length > 0 && (
-            <View style={styles.flagList}>
-              {result.per_modality.vitals.flagged_vitals.map((fv, i) => (
-                <View key={i} style={styles.flagRow}>
-                  <Text style={styles.flagLabel}>{fv.label || fv.vital}:</Text>
-                  <Text style={styles.flagValue}>
-                    {fv.value} ({fv.severity})
+        {/* Reviewer Notes (Only if reviewed) */}
+        {status === 'reviewed' && review && (
+          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.reviewCard}>
+            <View style={styles.reviewCardInner}>
+              <View style={styles.reviewHeader}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.riskLow} />
+                <Text style={[TypographyScale.body, { color: colors.riskLow, fontWeight: '600' }]}>
+                  Reviewer Notes
+                </Text>
+              </View>
+              <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 21, marginBottom: Spacing.xs }]}>
+                {review.clinical_notes || 'No clinical notes provided.'}
+              </Text>
+              {review.reviewer_risk_override && (
+                <View style={styles.overrideRow}>
+                  <Text style={[TypographyScale.caption, { color: colors.textPrimary, fontWeight: '600' }]}>
+                    Risk Override:
                   </Text>
+                  <RiskBadge level={review.reviewer_risk_override as RiskLevel} size="small" />
                 </View>
-              ))}
+              )}
+              <Text style={[TypographyScale.caption, { color: colors.textTertiary, marginTop: Spacing.xs }]}>
+                Reviewed on {new Date(review.reviewed_at).toLocaleString()}
+              </Text>
             </View>
-          )}
-        </CollapsibleSection>
-      )}
+          </GlassCard>
+        )}
 
-      {/* Differential Summary */}
-      <View style={[styles.differentialCard, Shadows.card]}>
-        <Text style={styles.differentialTitle}>Differential Summary</Text>
-        {result.differential_summary.image_finding && (
-          <View style={styles.diffRow}>
-            <Text style={styles.diffLabel}>Image:</Text>
-            <Text style={styles.diffValue}>{result.differential_summary.image_finding}</Text>
+        {/* Risk header */}
+        <View style={styles.riskHeader}>
+          <RiskBadge level={result.overall_risk as RiskLevel} size="large" />
+          <Text style={[TypographyScale.h2, styles.triageTier, { color: riskColor }]}>
+            {result.triage_tier} — Triage Tier
+          </Text>
+          <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, marginTop: Spacing.xxs }]}>
+            Confidence: {result.confidence_pct.toFixed(1)}% · {result.fusion_method}
+          </Text>
+        </View>
+
+        {/* Risk probability bar */}
+        <GlassCard tint="default" elevation="raised" radius="md" style={styles.card}>
+          <View style={styles.cardInner}>
+            <Text style={[TypographyScale.h3, styles.cardTitle, { color: colors.textPrimary }]}>
+              Risk Probability Distribution
+            </Text>
+            <RiskProbabilityBar probabilities={result.risk_probabilities} />
           </View>
+        </GlassCard>
+
+        {/* Per-modality findings */}
+        {result.per_modality.image && (
+          <CollapsibleSection
+            title="Image Finding"
+            expanded={expandedSections.image}
+            onToggle={() => toggleSection('image')}
+          >
+            <View style={styles.modalityRow}>
+              <RiskBadge level={result.per_modality.image.risk as RiskLevel} size="small" />
+              <Text style={[TypographyScale.caption, { color: colors.textSecondary, fontVariant: ['tabular-nums'] }]}>
+                Confidence: {result.per_modality.image.confidence_pct.toFixed(1)}%
+              </Text>
+            </View>
+            <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 21 }]}>
+              {result.per_modality.image.finding}
+            </Text>
+          </CollapsibleSection>
         )}
-        {result.differential_summary.symptom_match && (
-          <View style={styles.diffRow}>
-            <Text style={styles.diffLabel}>Symptoms:</Text>
-            <Text style={styles.diffValue}>{result.differential_summary.symptom_match}</Text>
+
+        {result.per_modality.text && (
+          <CollapsibleSection
+            title="Symptom Match"
+            expanded={expandedSections.text}
+            onToggle={() => toggleSection('text')}
+          >
+            <View style={styles.modalityRow}>
+              <RiskBadge level={result.per_modality.text.risk as RiskLevel} size="small" />
+              <Text style={[TypographyScale.caption, { color: colors.textSecondary, fontVariant: ['tabular-nums'] }]}>
+                Confidence: {result.per_modality.text.confidence_pct.toFixed(1)}%
+              </Text>
+            </View>
+            <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 21 }]}>
+              Matched condition: {result.per_modality.text.match}
+            </Text>
+          </CollapsibleSection>
+        )}
+
+        {result.per_modality.vitals && (
+          <CollapsibleSection
+            title="Vitals Flags"
+            expanded={expandedSections.vitals}
+            onToggle={() => toggleSection('vitals')}
+          >
+            <View style={styles.modalityRow}>
+              <RiskBadge level={result.per_modality.vitals.risk as RiskLevel} size="small" />
+              <Text style={[TypographyScale.caption, { color: colors.textSecondary }]}>
+                Flags: {result.per_modality.vitals.flags}
+              </Text>
+            </View>
+            {result.per_modality.vitals.flagged_vitals?.length > 0 && (
+              <View style={styles.flagList}>
+                {result.per_modality.vitals.flagged_vitals.map((fv, i) => (
+                  <View key={i} style={styles.flagRow}>
+                    <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, fontWeight: '600' }]}>
+                      {fv.label || fv.vital}:
+                    </Text>
+                    <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, flex: 1 }]}>
+                      {fv.value} ({fv.severity})
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </CollapsibleSection>
+        )}
+
+        {/* Differential Summary */}
+        <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.card}>
+          <View style={styles.cardInner}>
+            <Text style={[TypographyScale.h3, styles.cardTitle, { color: colors.primary }]}>
+              Differential Summary
+            </Text>
+            {result.differential_summary.image_finding && (
+              <View style={styles.diffRow}>
+                <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, fontWeight: '600', width: 80 }]}>
+                  Image:
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, flex: 1 }]}>
+                  {result.differential_summary.image_finding}
+                </Text>
+              </View>
+            )}
+            {result.differential_summary.symptom_match && (
+              <View style={styles.diffRow}>
+                <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, fontWeight: '600', width: 80 }]}>
+                  Symptoms:
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, flex: 1 }]}>
+                  {result.differential_summary.symptom_match}
+                </Text>
+              </View>
+            )}
+            {result.differential_summary.vitals_pattern && (
+              <View style={styles.diffRow}>
+                <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, fontWeight: '600', width: 80 }]}>
+                  Vitals:
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, flex: 1 }]}>
+                  {result.differential_summary.vitals_pattern}
+                </Text>
+              </View>
+            )}
+            {result.differential_summary.consistency_note && (
+              <View style={[styles.consistencyBox, { backgroundColor: `${colors.primary}12`, borderRadius: Radius.sm }]}>
+                <Text style={[TypographyScale.caption, { color: colors.primary, fontWeight: '700', marginBottom: 2 }]}>
+                  Consistency Note
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, lineHeight: 20 }]}>
+                  {result.differential_summary.consistency_note}
+                </Text>
+              </View>
+            )}
           </View>
+        </GlassCard>
+
+        {/* Grad-CAM overlay if available */}
+        {result.gradcam_overlay_url && (
+          <GlassCard tint="default" elevation="raised" radius="md" style={styles.card}>
+            <View style={styles.cardInner}>
+              <Text style={[TypographyScale.h3, styles.cardTitle, { color: colors.textPrimary }]}>
+                Grad-CAM Visualization
+              </Text>
+              <Image
+                source={{ uri: result.gradcam_overlay_url }}
+                style={[styles.gradcamImage, { backgroundColor: colors.surfaceSunken }]}
+                resizeMode="contain"
+              />
+            </View>
+          </GlassCard>
         )}
-        {result.differential_summary.vitals_pattern && (
-          <View style={styles.diffRow}>
-            <Text style={styles.diffLabel}>Vitals:</Text>
-            <Text style={styles.diffValue}>{result.differential_summary.vitals_pattern}</Text>
-          </View>
-        )}
-        {result.differential_summary.consistency_note && (
-          <View style={styles.consistencyCard}>
-            <Text style={styles.consistencyLabel}>Consistency Note</Text>
-            <Text style={styles.consistencyText}>
-              {result.differential_summary.consistency_note}
+
+        {/* Clinical Disclaimer */}
+        <GlassCard tint="default" radius="md" style={styles.card}>
+          <View style={styles.cardInner}>
+            <Text style={[TypographyScale.bodySm, { color: colors.riskMedium, fontWeight: '700', marginBottom: Spacing.xxs }]}>
+              ⚕ Clinical Disclaimer
+            </Text>
+            <Text style={[TypographyScale.caption, { color: colors.textSecondary, lineHeight: 18 }]}>
+              This tool is not a substitute for professional medical judgment. Risk levels
+              are probability estimates generated by machine learning models and should be
+              used as one input among many in clinical decision-making. Always follow
+              established clinical protocols and exercise professional judgment.
             </Text>
           </View>
-        )}
-      </View>
+        </GlassCard>
 
-      {/* Grad-CAM overlay if available */}
-      {result.gradcam_overlay_url && (
-        <View style={[styles.card, Shadows.card]}>
-          <Text style={styles.cardTitle}>Grad-CAM Visualization</Text>
-          <Image
-            source={{ uri: result.gradcam_overlay_url }}
-            style={styles.gradcamImage}
-            resizeMode="contain"
+        {/* Actions */}
+        <View style={styles.actions}>
+          <ReportViewerButton assessmentId={assessment._id} reportTitle={assessment.assessment_ref} style={{ marginBottom: Spacing.sm }} />
+          <Button
+            title="Back to History"
+            onPress={() => router.back()}
+            variant="primary"
           />
         </View>
-      )}
-
-      {/* Disclaimer */}
-      <View style={styles.disclaimer}>
-        <Text style={styles.disclaimerTitle}>⚕ Clinical Disclaimer</Text>
-        <Text style={styles.disclaimerText}>
-          This tool is not a substitute for professional medical judgment. Risk levels
-          are probability estimates generated by machine learning models and should be
-          used as one input among many in clinical decision-making. Always follow
-          established clinical protocols and exercise professional judgment.
-        </Text>
-      </View>
-
-      {/* Actions */}
-      <View style={styles.actions}>
-        <ReportViewerButton assessmentId={assessment._id} reportTitle={assessment.assessment_ref} style={{ marginBottom: Spacing.sm }} />
-        <Button
-          title="Back to History"
-          onPress={() => router.back()}
-          variant="primary"
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </Screen>
   );
 }
 
-/** Collapsible section component for per-modality findings */
 function CollapsibleSection({
   title,
   expanded,
@@ -282,216 +343,131 @@ function CollapsibleSection({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={[collStyles.card, Shadows.card]}>
+    <GlassCard tint="default" elevation="raised" radius="md" style={styles.card}>
       <TouchableOpacity
-        style={collStyles.header}
+        style={styles.collapsibleHeader}
         onPress={onToggle}
         activeOpacity={0.7}
       >
-        <Text style={collStyles.title}>{title}</Text>
+        <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>{title}</Text>
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={18}
-          color={Colors.textSecondary}
+          color={colors.textSecondary}
         />
       </TouchableOpacity>
-      {expanded && <View style={collStyles.content}>{children}</View>}
-    </View>
+      {expanded && <View style={styles.collapsibleContent}>{children}</View>}
+    </GlassCard>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: Colors.background },
-  container: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-
+  scroll: {
+    flex: 1,
+  },
+  container: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 96, // Floating TabBar clearance
+  },
   centerContainer: {
-    flex: 1, backgroundColor: Colors.background,
-    justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
   },
-  loadingText: {
-    fontFamily: Typography.medium, fontSize: 15,
-    color: Colors.textSecondary, marginTop: Spacing.md,
+  errorCard: {
+    width: '100%',
   },
-  errorBanner: {
-    backgroundColor: Colors.riskHigh + '15', padding: Spacing.md,
-    borderRadius: 12, marginBottom: Spacing.md, width: '100%',
+  errorInner: {
+    padding: Spacing.lg,
+    alignItems: 'center',
   },
-  errorText: {
-    fontFamily: Typography.medium, fontSize: 14,
-    color: Colors.riskHigh, textAlign: 'center',
-  },
-  retryButton: { marginBottom: Spacing.sm, width: '100%' },
-
-  // Meta header
   metaHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    marginBottom: Spacing.md, paddingHorizontal: Spacing.xs,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
-  refText: {
-    fontFamily: Typography.medium, fontSize: 13, color: Colors.textSecondary,
-  },
-  dateText: {
-    fontFamily: Typography.regular, fontSize: 13, color: Colors.textSecondary,
-  },
-
-  // Review Notes
   reviewCard: {
-    backgroundColor: Colors.riskLow + '08', borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.riskLow + '30',
-    padding: Spacing.md, marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  reviewCardInner: {
+    padding: Spacing.md,
   },
   reviewHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
-  reviewTitle: {
-    fontFamily: Typography.semiBold, fontSize: 15, color: Colors.riskLow,
-  },
-  reviewText: {
-    fontFamily: Typography.regular, fontSize: 14,
-    color: Colors.textPrimary, lineHeight: 21, marginBottom: Spacing.xs,
-  },
   overrideRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginVertical: Spacing.xs,
   },
-  overrideLabel: {
-    fontFamily: Typography.medium, fontSize: 13, color: Colors.textPrimary,
-  },
-  reviewDate: {
-    fontFamily: Typography.regular, fontSize: 12,
-    color: Colors.textSecondary, marginTop: Spacing.xs,
-  },
-
-  // Risk header
   riskHeader: {
-    alignItems: 'center', paddingVertical: Spacing.sm, marginBottom: Spacing.md,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
   },
   triageTier: {
-    fontFamily: Typography.semiBold, fontSize: 14,
-    marginTop: Spacing.sm, letterSpacing: 1,
-  },
-  confidence: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textSecondary, marginTop: Spacing.xxs,
-  },
-
-  // Cards
-  card: {
-    backgroundColor: Colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    padding: Spacing.md, marginBottom: Spacing.sm,
-  },
-  cardTitle: {
-    fontFamily: Typography.semiBold, fontSize: 15,
-    color: Colors.textPrimary, marginBottom: Spacing.xs,
-  },
-
-  // Modality sections
-  modalityRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: Spacing.sm, marginBottom: Spacing.xs,
-  },
-  modalityDetail: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textSecondary, fontVariant: ['tabular-nums'],
-  },
-  modalityText: {
-    fontFamily: Typography.regular, fontSize: 14,
-    color: Colors.textPrimary, lineHeight: 21,
-  },
-  flagList: { marginTop: Spacing.xs },
-  flagRow: {
-    flexDirection: 'row', gap: Spacing.xs,
-    paddingVertical: 2,
-  },
-  flagLabel: {
-    fontFamily: Typography.medium, fontSize: 13, color: Colors.textPrimary,
-  },
-  flagValue: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textSecondary, flex: 1,
-  },
-
-  // Differential summary
-  differentialCard: {
-    backgroundColor: Colors.primary + '08', borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.primary + '20',
-    padding: Spacing.md, marginBottom: Spacing.md,
-  },
-  differentialTitle: {
-    fontFamily: Typography.semiBold, fontSize: 15,
-    color: Colors.primary, marginBottom: Spacing.sm,
-  },
-  diffRow: {
-    flexDirection: 'row', marginBottom: Spacing.xs, gap: Spacing.xs,
-  },
-  diffLabel: {
-    fontFamily: Typography.semiBold, fontSize: 13,
-    color: Colors.textPrimary, width: 70,
-  },
-  diffValue: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textPrimary, flex: 1, lineHeight: 19,
-  },
-  consistencyCard: {
-    backgroundColor: Colors.primary + '0C', borderRadius: 8,
-    padding: Spacing.sm, marginTop: Spacing.xs,
-  },
-  consistencyLabel: {
-    fontFamily: Typography.semiBold, fontSize: 12,
-    color: Colors.primary, marginBottom: Spacing.xxs,
+    marginTop: Spacing.sm,
     letterSpacing: 0.5,
   },
-  consistencyText: {
-    fontFamily: Typography.medium, fontSize: 14,
-    color: Colors.textPrimary, lineHeight: 21,
-  },
-
-  // Grad-CAM
-  gradcamImage: {
-    width: '100%', height: 220, borderRadius: 8,
-    backgroundColor: Colors.border,
-  },
-
-  // Disclaimer
-  disclaimer: {
-    backgroundColor: Colors.surface, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.riskMedium + '40',
-    padding: Spacing.md, marginBottom: Spacing.lg,
-  },
-  disclaimerTitle: {
-    fontFamily: Typography.semiBold, fontSize: 13,
-    color: Colors.riskMedium, marginBottom: Spacing.xxs,
-  },
-  disclaimerText: {
-    fontFamily: Typography.regular, fontSize: 12,
-    color: Colors.textSecondary, lineHeight: 18,
-  },
-
-  // Actions
-  actions: { gap: Spacing.sm },
-});
-
-const collStyles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    marginBottom: Spacing.sm, overflow: 'hidden',
+    marginBottom: Spacing.sm,
   },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: Spacing.md,
+  cardInner: {
+    padding: Spacing.md,
   },
-  title: {
-    fontFamily: Typography.semiBold, fontSize: 15, color: Colors.textPrimary,
+  cardTitle: {
+    marginBottom: Spacing.xs,
   },
-  content: {
-    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
+  modalityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  flagList: {
+    marginTop: Spacing.xs,
+  },
+  flagRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingVertical: 2,
+  },
+  diffRow: {
+    flexDirection: 'row',
+    marginBottom: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  consistencyBox: {
+    padding: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  gradcamImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: Radius.sm,
+    marginTop: Spacing.xs,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  collapsibleContent: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  actions: {
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
   },
 });

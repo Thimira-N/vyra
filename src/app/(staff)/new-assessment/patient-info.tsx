@@ -1,15 +1,15 @@
 /**
- * Step 1: Patient Info — Spec §6.2
+ * Step 1: Patient Info — Spec §6.2, UI Upgrade U4
  *
- * Search-or-create pattern: search field (calls GET /patients?search=)
- * showing matching existing patients, or a "+ New Patient" form
- * (name, age, sex, phone). Selecting/creating a patient stores
- * patient_id in assessmentDraftStore and advances.
- *
- * Three states: loading (search spinner), error (retry), results/empty.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - ProgressSteps at top
+ * - Search-or-create cards in elevated GlassCards
+ * - Safe area & bottom clearance
+ * - Preserved logic: searchPatients, createPatient, assessmentDraftStore integration
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,21 +17,24 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import TextField from '@/components/ui/TextField';
 import Button from '@/components/ui/Button';
 import { searchPatients, createPatient, type PatientOut } from '@/services/patientsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
-
 import { NotificationService } from '@/services/notificationService';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
 export default function PatientInfoScreen() {
+  const { colors } = useTheme();
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PatientOut[]>([]);
@@ -106,12 +109,11 @@ export default function PatientInfoScreen() {
       });
       setPatient(patient);
       setShowNewForm(false);
-      
-      // Notify success
+
       NotificationService.notify(
         'success',
         'Patient Created',
-        `Successfully created record for ${patient.full_name}`
+        `Successfully created record for ${patient.full_name}`,
       );
     } catch (error: any) {
       setCreateError(
@@ -120,7 +122,7 @@ export default function PatientInfoScreen() {
       NotificationService.notify(
         'error',
         'Failed to create',
-        'An error occurred while creating the patient record.'
+        'An error occurred while creating the patient record.',
       );
     } finally {
       setIsCreating(false);
@@ -133,284 +135,332 @@ export default function PatientInfoScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ProgressSteps steps={STEPS} currentStep={0} />
+    <Screen safeArea={true}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ProgressSteps steps={STEPS} currentStep={0} />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Patient Information</Text>
-        <Text style={styles.description}>
-          Search for an existing patient or create a new record.
-        </Text>
+        <View style={styles.content}>
+          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+            Patient Information
+          </Text>
+          <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
+            Search for an existing patient or create a new record.
+          </Text>
 
-        {/* Selected patient banner */}
-        {selectedPatient && (
-          <View style={styles.selectedBanner}>
-            <View style={styles.selectedInfo}>
-              <Text style={styles.selectedName}>{selectedPatient.full_name}</Text>
-              <Text style={styles.selectedMeta}>
-                {selectedPatient.patient_ref} · {selectedPatient.sex} · Age {selectedPatient.age}
-              </Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => setPatient(null)} 
-              activeOpacity={0.7}
-              style={styles.changeLinkContainer}
-            >
-              <Text style={styles.changeLink}>Change</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Search */}
-        {!selectedPatient && (
-          <>
-            <View style={styles.searchRow}>
-              <View style={styles.searchInput}>
-                <TextField
-                  label="Search Patient"
-                  placeholder="Name or patient ref..."
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={handleSearch}
-                  returnKeyType="search"
-                  containerStyle={{ marginBottom: 0 }}
-                />
-              </View>
-              <Button
-                title="Search"
-                onPress={handleSearch}
-                loading={isSearching}
-                disabled={isSearching || !searchQuery.trim()}
-                style={styles.searchButton}
-              />
-            </View>
-
-            {/* Search results */}
-            {searchError ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{searchError}</Text>
-                <Button title="Retry" onPress={handleSearch} variant="outline" style={styles.retryButton} />
-              </View>
-            ) : isSearching ? (
-              <ActivityIndicator color={Colors.primary} style={styles.spinner} />
-            ) : hasSearched && searchResults.length === 0 ? (
-              <Text style={styles.emptyText}>No patients found. Create a new record below.</Text>
-            ) : (
-              searchResults.map((p) => (
+          {/* Selected patient banner */}
+          {selectedPatient && (
+            <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.selectedBanner}>
+              <View style={styles.selectedBannerInner}>
+                <View style={styles.selectedInfo}>
+                  <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '700' }]}>
+                    {selectedPatient.full_name}
+                  </Text>
+                  <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                    {selectedPatient.patient_ref} · {selectedPatient.sex} · Age {selectedPatient.age}
+                  </Text>
+                </View>
                 <TouchableOpacity
-                  key={p._id}
-                  style={[styles.resultCard, Shadows.card]}
-                  onPress={() => selectPatient(p)}
+                  onPress={() => setPatient(null)}
                   activeOpacity={0.7}
+                  style={styles.changeLinkContainer}
                 >
-                  <Text style={styles.resultName}>{p.full_name}</Text>
-                  <Text style={styles.resultMeta}>
-                    {p.patient_ref} · {p.sex} · Age {p.age}
-                    {p.phone ? ` · ${p.phone}` : ''}
+                  <Text style={[TypographyScale.button, { color: colors.primaryLight, fontSize: 14 }]}>
+                    Change
                   </Text>
                 </TouchableOpacity>
-              ))
-            )}
+              </View>
+            </GlassCard>
+          )}
 
-            {/* New patient toggle */}
-            <TouchableOpacity
-              style={styles.newPatientToggle}
-              onPress={() => setShowNewForm(!showNewForm)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.newPatientToggleText}>
-                {showNewForm ? '− Hide New Patient Form' : '+ New Patient'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* New patient form */}
-            {showNewForm && (
-              <View style={[styles.card, Shadows.card]}>
-                <Text style={styles.cardTitle}>New Patient</Text>
-
-                {createError ? (
-                  <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>{createError}</Text>
+          {/* Search */}
+          {!selectedPatient && (
+            <>
+              <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.searchCard}>
+                <View style={styles.searchCardInner}>
+                  <View style={styles.searchRow}>
+                    <View style={styles.searchInput}>
+                      <TextField
+                        label="Search Patient"
+                        placeholder="Name or patient ref..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        onSubmitEditing={handleSearch}
+                        returnKeyType="search"
+                        containerStyle={{ marginBottom: 0 }}
+                      />
+                    </View>
+                    <Button
+                      title="Search"
+                      onPress={handleSearch}
+                      loading={isSearching}
+                      disabled={isSearching || !searchQuery.trim()}
+                      style={styles.searchButton}
+                    />
                   </View>
-                ) : null}
+                </View>
+              </GlassCard>
 
-                <TextField
-                  label="Full Name"
-                  placeholder="Patient full name"
-                  value={newName}
-                  onChangeText={(t) => { setNewName(t); setNewErrors((e) => ({ ...e, name: '' })); }}
-                  error={newErrors.name}
-                />
-                <TextField
-                  label="Age"
-                  placeholder="Age"
-                  keyboardType="numeric"
-                  value={newAge}
-                  onChangeText={(t) => { setNewAge(t); setNewErrors((e) => ({ ...e, age: '' })); }}
-                  error={newErrors.age}
-                />
-
-                {/* Sex selector */}
-                <Text style={styles.fieldLabel}>Sex</Text>
-                <View style={styles.sexSelector}>
-                  {(['M', 'F', 'Other'] as const).map((s) => (
+              {/* Search results */}
+              {searchError ? (
+                <GlassCard tint="default" elevation="raised" radius="md" style={styles.errorCard}>
+                  <View style={styles.errorInner}>
+                    <Text style={[TypographyScale.body, { color: colors.danger, textAlign: 'center' }]}>
+                      {searchError}
+                    </Text>
+                    <Button title="Retry" onPress={handleSearch} variant="outline" style={{ marginTop: Spacing.xs }} />
+                  </View>
+                </GlassCard>
+              ) : isSearching ? (
+                <ActivityIndicator color={colors.primary} style={styles.spinner} />
+              ) : hasSearched && searchResults.length === 0 ? (
+                <Text style={[TypographyScale.body, styles.emptyText, { color: colors.textSecondary }]}>
+                  No patients found. Create a new record below.
+                </Text>
+              ) : (
+                searchResults.map((p) => (
+                  <GlassCard key={p._id} tint="default" elevation="raised" radius="md" style={styles.resultCard}>
                     <TouchableOpacity
-                      key={s}
-                      style={[styles.sexOption, newSex === s && styles.sexOptionActive]}
-                      onPress={() => setNewSex(s)}
+                      style={styles.resultInner}
+                      onPress={() => selectPatient(p)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.sexText, newSex === s && styles.sexTextActive]}>
-                        {s === 'M' ? 'Male' : s === 'F' ? 'Female' : 'Other'}
+                      <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
+                        {p.full_name}
+                      </Text>
+                      <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                        {p.patient_ref} · {p.sex} · Age {p.age}
+                        {p.phone ? ` · ${p.phone}` : ''}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
+                  </GlassCard>
+                ))
+              )}
 
-                <TextField
-                  label="Phone (Optional)"
-                  placeholder="+94771234567"
-                  keyboardType="phone-pad"
-                  value={newPhone}
-                  onChangeText={setNewPhone}
-                />
+              {/* New patient toggle */}
+              <TouchableOpacity
+                style={styles.newPatientToggle}
+                onPress={() => setShowNewForm(!showNewForm)}
+                activeOpacity={0.7}
+              >
+                <Text style={[TypographyScale.button, { color: colors.primaryLight, fontSize: 15 }]}>
+                  {showNewForm ? '− Hide New Patient Form' : '+ New Patient'}
+                </Text>
+              </TouchableOpacity>
 
-                <Button
-                  title="Create Patient"
-                  onPress={handleCreatePatient}
-                  loading={isCreating}
-                  disabled={isCreating}
-                />
-              </View>
-            )}
-          </>
-        )}
+              {/* New patient form */}
+              {showNewForm && (
+                <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.formCard}>
+                  <View style={styles.formCardInner}>
+                    <Text style={[TypographyScale.h3, styles.cardTitle, { color: colors.primaryLight }]}>
+                      New Patient Record
+                    </Text>
 
-        {/* Next button */}
-        {selectedPatient && (
-          <Button title="Next: Symptoms →" onPress={handleNext} style={styles.nextButton} />
-        )}
-      </View>
-    </ScrollView>
+                    {createError ? (
+                      <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.danger}35` }]}>
+                        <Text style={[TypographyScale.caption, { color: colors.danger }]}>
+                          {createError}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <TextField
+                      label="Full Name"
+                      placeholder="Patient full name"
+                      value={newName}
+                      onChangeText={(t) => {
+                        setNewName(t);
+                        setNewErrors((e) => ({ ...e, name: '' }));
+                      }}
+                      error={newErrors.name}
+                    />
+                    <TextField
+                      label="Age"
+                      placeholder="Age"
+                      keyboardType="numeric"
+                      value={newAge}
+                      onChangeText={(t) => {
+                        setNewAge(t);
+                        setNewErrors((e) => ({ ...e, age: '' }));
+                      }}
+                      error={newErrors.age}
+                    />
+
+                    {/* Sex selector */}
+                    <Text style={[TypographyScale.caption, styles.fieldLabel, { color: colors.textSecondary }]}>
+                      Sex
+                    </Text>
+                    <View style={[styles.sexSelector, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
+                      {(['M', 'F', 'Other'] as const).map((s) => (
+                        <TouchableOpacity
+                          key={s}
+                          style={[
+                            styles.sexOption,
+                            newSex === s && { backgroundColor: colors.primary, borderRadius: Radius.md - 2 },
+                          ]}
+                          onPress={() => setNewSex(s)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              TypographyScale.button,
+                              {
+                                color: newSex === s ? colors.textOnPrimary : colors.textSecondary,
+                                fontSize: 13,
+                              },
+                            ]}
+                          >
+                            {s === 'M' ? 'Male' : s === 'F' ? 'Female' : 'Other'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <TextField
+                      label="Phone (Optional)"
+                      placeholder="+94771234567"
+                      keyboardType="phone-pad"
+                      value={newPhone}
+                      onChangeText={setNewPhone}
+                    />
+
+                    <Button
+                      title="Create Patient"
+                      onPress={handleCreatePatient}
+                      loading={isCreating}
+                      disabled={isCreating}
+                    />
+                  </View>
+                </GlassCard>
+              )}
+            </>
+          )}
+
+          {/* Next button */}
+          {selectedPatient && (
+            <Button title="Next: Symptoms →" onPress={handleNext} style={styles.nextButton} />
+          )}
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: Colors.background },
-  container: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  content: { marginTop: Spacing.md },
+  scroll: {
+    flex: 1,
+  },
+  container: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 96,
+  },
+  content: {
+    marginTop: Spacing.md,
+  },
   title: {
-    fontFamily: Typography.bold, fontSize: 22,
-    color: Colors.textPrimary, marginBottom: Spacing.xxs,
+    marginBottom: Spacing.xxs,
   },
   description: {
-    fontFamily: Typography.regular, fontSize: 14,
-    color: Colors.textSecondary, marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
-
-  // Selected patient
   selectedBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.primary + '0A', borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.primary + '20',
-    padding: Spacing.md, marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
-  selectedInfo: { flex: 1 },
-  selectedName: {
-    fontFamily: Typography.semiBold, fontSize: 16, color: Colors.textPrimary,
+  selectedBannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
   },
-  selectedMeta: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textSecondary, marginTop: 2,
+  selectedInfo: {
+    flex: 1,
   },
   changeLinkContainer: {
     minHeight: 44,
     justifyContent: 'center',
   },
-  changeLink: {
-    fontFamily: Typography.medium, fontSize: 14, color: Colors.primaryLight,
-  },
-
-  // Search
-  searchRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs,
+  searchCard: {
     marginBottom: Spacing.md,
   },
-  searchInput: { flex: 1 },
-  searchButton: { marginTop: 22, minWidth: 80 },
-  spinner: { marginVertical: Spacing.lg },
+  searchCardInner: {
+    padding: Spacing.md,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+  },
+  searchButton: {
+    marginTop: 22,
+    minWidth: 80,
+  },
+  spinner: {
+    marginVertical: Spacing.lg,
+  },
   emptyText: {
-    fontFamily: Typography.regular, fontSize: 14,
-    color: Colors.textSecondary, fontStyle: 'italic',
-    textAlign: 'center', marginVertical: Spacing.md,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: Spacing.md,
   },
-
-  // Search results
   resultCard: {
-    backgroundColor: Colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    padding: Spacing.md, marginBottom: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
-  resultName: {
-    fontFamily: Typography.semiBold, fontSize: 15, color: Colors.textPrimary,
+  resultInner: {
+    padding: Spacing.md,
   },
-  resultMeta: {
-    fontFamily: Typography.regular, fontSize: 13,
-    color: Colors.textSecondary, marginTop: 2,
-  },
-
-  // New patient
   newPatientToggle: {
-    paddingVertical: Spacing.sm, marginBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  newPatientToggleText: {
-    fontFamily: Typography.semiBold, fontSize: 15, color: Colors.primaryLight,
+  formCard: {
+    marginBottom: Spacing.lg,
   },
-  card: {
-    backgroundColor: Colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    padding: Spacing.md, marginBottom: Spacing.lg,
+  formCardInner: {
+    padding: Spacing.md,
   },
   cardTitle: {
-    fontFamily: Typography.semiBold, fontSize: 16,
-    color: Colors.primaryLight, marginBottom: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   fieldLabel: {
-    fontFamily: Typography.medium, fontSize: 14,
-    color: Colors.textPrimary, marginBottom: Spacing.xxs,
+    marginBottom: Spacing.xxs,
+    fontWeight: '600',
   },
   sexSelector: {
-    flexDirection: 'row', borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.border,
-    overflow: 'hidden', marginBottom: Spacing.md,
+    flexDirection: 'row',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: 3,
+    marginBottom: Spacing.md,
   },
   sexOption: {
-    flex: 1, paddingVertical: Spacing.sm,
-    alignItems: 'center', backgroundColor: Colors.surface,
-    minHeight: 44,
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 40,
   },
-  sexOptionActive: { backgroundColor: Colors.primary },
-  sexText: {
-    fontFamily: Typography.medium, fontSize: 14, color: Colors.textSecondary,
-  },
-  sexTextActive: { color: Colors.surface },
-
-  // Error
   errorBanner: {
-    backgroundColor: Colors.riskHigh + '12',
-    borderWidth: 1, borderColor: Colors.riskHigh + '30',
-    borderRadius: 10, padding: Spacing.sm, marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  errorText: {
-    fontFamily: Typography.medium, fontSize: 13,
-    color: Colors.riskHigh, lineHeight: 19,
+  errorCard: {
+    marginBottom: Spacing.md,
   },
-  retryButton: { marginTop: Spacing.xs },
-  nextButton: { marginTop: Spacing.md },
+  errorInner: {
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  nextButton: {
+    marginTop: Spacing.md,
+  },
 });

@@ -1,20 +1,28 @@
 /**
- * Staff Home — Spec §6.2
- * Dashboard summary with greeting, quick stats, new assessment CTA,
- * and recent assessments list.
+ * Staff Home — Spec §6.2, UI Upgrade U4
  *
- * FIXED (post-F6 audit): Phase F0 left this screen wired to hardcoded
- * placeholder content ("Dr. Staff User", static "—" stats, always-empty
- * recent list) that was never revisited once real auth/assessment data
- * existed from later phases. This version follows the same
- * loading/error/empty pattern already used correctly in
- * (staff)/history/index.tsx, reusing the same API services.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - Stat cards & recent items in elevated GlassCards
+ * - Safe area & header clearance (paddingTop for translucent header, paddingBottom for floating tab bar)
+ * - Preserved logic: getMyAssessments & getPatientById loading, sorting, error handling, focus refetch
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { Link, router, useFocusEffect } from 'expo-router';
-import { Colors, Typography, Spacing, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import RiskBadge from '@/components/ui/RiskBadge';
 import { useAuthStore } from '@/store/authStore';
@@ -36,6 +44,7 @@ function isWithinLast7Days(isoDate: string): boolean {
 }
 
 export default function StaffHomeScreen() {
+  const { colors } = useTheme();
   const user = useAuthStore((s) => s.user);
 
   const [assessments, setAssessments] = useState<AssessmentOut[]>([]);
@@ -48,7 +57,6 @@ export default function StaffHomeScreen() {
     setError('');
     try {
       const data = await getMyAssessments();
-      // Most recent first
       const sorted = [...data].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -73,8 +81,6 @@ export default function StaffHomeScreen() {
     }
   }, []);
 
-  // Refetch every time this screen comes into focus (e.g. after submitting
-  // a new assessment and navigating back) — not just on first mount.
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
@@ -85,132 +91,148 @@ export default function StaffHomeScreen() {
   const pendingReviewCount = assessments.filter((a) => a.status === 'pending_review').length;
   const recentThree = assessments.slice(0, 3);
 
-  const firstName = user?.full_name?.split(' ')[0] ?? '';
-
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Greeting */}
-      <View style={styles.greetingSection}>
-        <Text style={styles.greeting}>{getTimeOfDayGreeting()}</Text>
-        <Text style={styles.userName}>{user?.full_name || 'there'}</Text>
-      </View>
-
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statCard, Shadows.card]}>
-          {isLoading ? (
-            <ActivityIndicator color={Colors.primary} />
-          ) : (
-            <Text style={styles.statNumber}>{thisWeekCount}</Text>
-          )}
-          <Text style={styles.statLabel}>This Week</Text>
-        </View>
-        <View style={[styles.statCard, Shadows.card]}>
-          {isLoading ? (
-            <ActivityIndicator color={Colors.primary} />
-          ) : (
-            <Text style={styles.statNumber}>{pendingReviewCount}</Text>
-          )}
-          <Text style={styles.statLabel}>Pending Review</Text>
-        </View>
-      </View>
-
-      {/* New Assessment CTA */}
-      <Link href="/(staff)/new-assessment/patient-info" asChild>
-        <Button title="＋  New Assessment" onPress={() => {}} style={styles.ctaButton} />
-      </Link>
-
-      {/* Recent Assessments */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Recent Assessments</Text>
-          {assessments.length > 0 ? (
-            <Link href="/(staff)/history" style={styles.seeAllLink}>
-              See all
-            </Link>
-          ) : null}
+    <Screen safeArea={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Greeting */}
+        <View style={styles.greetingSection}>
+          <Text style={[TypographyScale.bodyLg, { color: colors.textSecondary }]}>
+            {getTimeOfDayGreeting()}
+          </Text>
+          <Text style={[TypographyScale.h1, { color: colors.textPrimary, marginTop: Spacing.xxs }]}>
+            {user?.full_name || 'there'}
+          </Text>
         </View>
 
-        {isLoading ? (
-          <View style={[styles.emptyCard, Shadows.card]}>
-            <ActivityIndicator color={Colors.primary} />
-          </View>
-        ) : error ? (
-          <View style={[styles.emptyCard, Shadows.card]}>
-            <Text style={styles.emptyIcon}>⚠️</Text>
-            <Text style={styles.emptyText}>{error}</Text>
-            <Button title="Retry" onPress={fetchDashboardData} style={styles.retryButton} />
-          </View>
-        ) : recentThree.length === 0 ? (
-          <View style={[styles.emptyCard, Shadows.card]}>
-            <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyText}>No assessments yet</Text>
-            <Text style={styles.emptySubtext}>
-              Start a new assessment to see results here
+        {/* Quick Stats */}
+        <View style={styles.statsRow}>
+          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.statCard}>
+            <View style={styles.statCardInner}>
+              {isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={[TypographyScale.h1, styles.statNumber, { color: colors.primary }]}>
+                  {thisWeekCount}
+                </Text>
+              )}
+              <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: Spacing.xxs }]}>
+                This Week
+              </Text>
+            </View>
+          </GlassCard>
+
+          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.statCard}>
+            <View style={styles.statCardInner}>
+              {isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={[TypographyScale.h1, styles.statNumber, { color: colors.primary }]}>
+                  {pendingReviewCount}
+                </Text>
+              )}
+              <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: Spacing.xxs }]}>
+                Pending Review
+              </Text>
+            </View>
+          </GlassCard>
+        </View>
+
+        {/* New Assessment CTA */}
+        <Link href="/(staff)/new-assessment/patient-info" asChild>
+          <Button title="＋  New Assessment" onPress={() => {}} style={styles.ctaButton} />
+        </Link>
+
+        {/* Recent Assessments */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>
+              Recent Assessments
             </Text>
+            {assessments.length > 0 ? (
+              <Link href="/(staff)/history" style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                See all
+              </Link>
+            ) : null}
           </View>
-        ) : (
-          recentThree.map((item) => {
-            const patient = patients[item.patient_id];
-            return (
-              <TouchableOpacity
-                key={item._id}
-                style={[styles.assessmentRow, Shadows.card]}
-                onPress={() => router.push(`/(staff)/history/${item._id}`)}
-              >
-                <View style={styles.assessmentRowLeft}>
-                  <Text style={styles.assessmentPatientName}>
-                    {patient?.full_name || 'Unknown patient'}
-                  </Text>
-                  <Text style={styles.assessmentDate}>
-                    {new Date(item.created_at).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </Text>
-                </View>
-                <RiskBadge level={item.result.overall_risk} size="small" />
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </View>
-    </ScrollView>
+
+          {isLoading ? (
+            <GlassCard tint="default" elevation="raised" radius="md" style={styles.emptyCard}>
+              <View style={styles.emptyCardInner}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            </GlassCard>
+          ) : error ? (
+            <GlassCard tint="default" elevation="raised" radius="md" style={styles.emptyCard}>
+              <View style={styles.emptyCardInner}>
+                <Text style={styles.emptyIcon}>⚠️</Text>
+                <Text style={[TypographyScale.body, { color: colors.danger, textAlign: 'center' }]}>
+                  {error}
+                </Text>
+                <Button title="Retry" onPress={fetchDashboardData} style={styles.retryButton} />
+              </View>
+            </GlassCard>
+          ) : recentThree.length === 0 ? (
+            <GlassCard tint="default" elevation="raised" radius="md" style={styles.emptyCard}>
+              <View style={styles.emptyCardInner}>
+                <Text style={styles.emptyIcon}>📋</Text>
+                <Text style={[TypographyScale.h3, { color: colors.textPrimary, textAlign: 'center' }]}>
+                  No assessments yet
+                </Text>
+                <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, marginTop: Spacing.xxs, textAlign: 'center' }]}>
+                  Start a new assessment to see results here
+                </Text>
+              </View>
+            </GlassCard>
+          ) : (
+            recentThree.map((item) => {
+              const patient = patients[item.patient_id];
+              return (
+                <GlassCard key={item._id} tint="default" elevation="raised" radius="md" style={styles.assessmentCard}>
+                  <TouchableOpacity
+                    style={styles.assessmentRow}
+                    onPress={() => router.push(`/(staff)/history/${item._id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.assessmentRowLeft}>
+                      <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
+                        {patient?.full_name || 'Unknown patient'}
+                      </Text>
+                      <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                        {new Date(item.created_at).toLocaleDateString(undefined, {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                    <RiskBadge level={item.result.overall_risk} size="small" />
+                  </TouchableOpacity>
+                </GlassCard>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   container: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? 96 : 84, // Header clearance
+    paddingBottom: 96, // Floating TabBar clearance
   },
-
-  // Greeting
   greetingSection: {
     marginBottom: Spacing.lg,
   },
-  greeting: {
-    fontFamily: Typography.regular,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  userName: {
-    fontFamily: Typography.bold,
-    fontSize: 26,
-    color: Colors.textPrimary,
-    marginTop: Spacing.xxs,
-  },
-
-  // Stats
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -218,34 +240,19 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  },
+  statCardInner: {
     padding: Spacing.md,
     alignItems: 'center',
-    minHeight: 76,
+    minHeight: 80,
     justifyContent: 'center',
   },
   statNumber: {
-    fontFamily: Typography.bold,
-    fontSize: 28,
-    color: Colors.primary,
     fontVariant: ['tabular-nums'],
   },
-  statLabel: {
-    fontFamily: Typography.medium,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xxs,
-  },
-
-  // CTA
   ctaButton: {
     marginBottom: Spacing.lg,
   },
-
-  // Sections
   section: {
     marginBottom: Spacing.lg,
   },
@@ -255,69 +262,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  sectionTitle: {
-    fontFamily: Typography.semiBold,
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
   seeAllLink: {
-    fontFamily: Typography.medium,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.primaryLight,
+    fontWeight: '600',
   },
-
-  // Assessment row
+  assessmentCard: {
+    marginBottom: Spacing.xs,
+  },
   assessmentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.md,
-    marginBottom: Spacing.xs,
   },
   assessmentRowLeft: {
     flex: 1,
   },
-  assessmentPatientName: {
-    fontFamily: Typography.semiBold,
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  assessmentDate: {
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-
-  // Empty / error state
   emptyCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  emptyCardInner: {
     padding: Spacing.xl,
     alignItems: 'center',
   },
   emptyIcon: {
     fontSize: 32,
     marginBottom: Spacing.xs,
-  },
-  emptyText: {
-    fontFamily: Typography.semiBold,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xxs,
-    textAlign: 'center',
   },
   retryButton: {
     marginTop: Spacing.md,

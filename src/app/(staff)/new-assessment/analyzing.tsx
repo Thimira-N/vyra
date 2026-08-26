@@ -1,32 +1,36 @@
 /**
- * Analyzing — Spec §6.2
+ * Analyzing — Spec §6.2, UI Upgrade U4
  *
- * Loading screen shown while the backend call is in flight.
- * Calls POST /assessments/ with the draft store data.
- * Shows progressive checklist animation (timed/simulated since
- * the backend returns one combined response).
- *
- * On success → stores result → navigates to result screen.
- * On error → shows error with retry.
+ * "Clinical Glass" restyle:
+ * - Screen wrapper with gradient mesh + blob accents
+ * - Analysis progress steps in elevated GlassCard
+ * - Serene "quiet motion" loading indicator
+ * - Safe area & bottom clearance
+ * - Preserved logic: createAssessment API call, local notifications, error handling & retry
  */
 
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import { createAssessment, type AssessmentOut } from '@/services/assessmentsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 import { NotificationService } from '@/services/notificationService';
 
 const ANALYSIS_STEPS = [
-  { label: 'Analyzing image...', icon: '🔬' },
-  { label: 'Analyzing symptoms...', icon: '📝' },
-  { label: 'Analyzing vitals...', icon: '💓' },
-  { label: 'Combining results...', icon: '🧠' },
+  { label: 'Analyzing image...', icon: 'image-outline' as const },
+  { label: 'Analyzing symptoms...', icon: 'document-text-outline' as const },
+  { label: 'Analyzing vitals...', icon: 'pulse-outline' as const },
+  { label: 'Combining results...', icon: 'git-merge-outline' as const },
 ];
 
 export default function AnalyzingScreen() {
+  const { colors } = useTheme();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState('');
   const [assessmentResult, setAssessmentResult] = useState<AssessmentOut | null>(null);
@@ -38,7 +42,6 @@ export default function AnalyzingScreen() {
   const vitals = useAssessmentDraftStore((s) => s.vitals);
   const setAssessmentId = useAssessmentDraftStore((s) => s.setAssessmentId);
 
-  // Simulated progress animation (timed, since backend returns one combined response)
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveStep((prev) => {
@@ -53,7 +56,6 @@ export default function AnalyzingScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Actual API call
   useEffect(() => {
     if (isSubmitting.current) return;
     isSubmitting.current = true;
@@ -80,16 +82,13 @@ export default function AnalyzingScreen() {
       setAssessmentResult(result);
       setAssessmentId(result._id);
 
-      // Trigger a local notification simulating a backend push when the report is ready
       NotificationService.scheduleLocalNotification(
         'Assessment Ready',
-        `Risk analysis completed for the patient.`,
+        'Risk analysis completed for the patient.',
       );
-      
-      // Also show a toast
+
       NotificationService.notify('success', 'Analysis Complete', 'Risk report generated successfully.', true);
 
-      // Small delay to let animation finish, then navigate
       setTimeout(() => {
         router.replace({
           pathname: '/(staff)/new-assessment/result',
@@ -115,7 +114,6 @@ export default function AnalyzingScreen() {
     setActiveStep(0);
     isSubmitting.current = false;
 
-    // Restart animation
     const timer = setInterval(() => {
       setActiveStep((prev) => {
         if (prev >= ANALYSIS_STEPS.length - 1) {
@@ -130,102 +128,137 @@ export default function AnalyzingScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.content}>
-        {!error && <ActivityIndicator size="large" color={Colors.primary} style={styles.spinner} />}
-
-        <Text style={styles.title}>
-          {error ? 'Submission Failed' : 'Analyzing Assessment'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {error
-            ? 'There was an issue submitting the assessment.'
-            : 'Processing multi-modal clinical data...'}
-        </Text>
-
-        {error ? (
-          <View style={styles.errorContainer}>
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
+    <Screen safeArea={true}>
+      <View style={styles.container}>
+        <View style={styles.content}>
+          {!error && (
+            <View style={styles.indicatorContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-            <Button title="Retry" onPress={handleRetry} variant="primary" />
-            <Button
-              title="Go Back"
-              onPress={() => router.back()}
-              variant="outline"
-              style={styles.backButton}
-            />
-          </View>
-        ) : (
-          <View style={styles.steps}>
-            {ANALYSIS_STEPS.map((step, index) => {
-              const isDone = index < activeStep || assessmentResult !== null;
-              const isActive = index === activeStep && !assessmentResult;
+          )}
 
-              return (
-                <View key={step.label} style={styles.stepRow}>
-                  <Text style={styles.stepIcon}>
-                    {isDone ? '✓' : step.icon}
+          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
+            {error ? 'Submission Failed' : 'Analyzing Assessment'}
+          </Text>
+          <Text style={[TypographyScale.body, styles.subtitle, { color: colors.textSecondary }]}>
+            {error
+              ? 'There was an issue submitting the assessment.'
+              : 'Processing multi-modal clinical data...'}
+          </Text>
+
+          {error ? (
+            <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.errorCard}>
+              <View style={styles.errorInner}>
+                <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.danger}35` }]}>
+                  <Text style={[TypographyScale.caption, { color: colors.danger, textAlign: 'center' }]}>
+                    {error}
                   </Text>
-                  <Text
-                    style={[
-                      styles.stepLabel,
-                      isDone && styles.stepDone,
-                      isActive && styles.stepActive,
-                    ]}
-                  >
-                    {step.label}
-                  </Text>
-                  {isActive && (
-                    <ActivityIndicator size="small" color={Colors.primaryLight} style={styles.stepSpinner} />
-                  )}
                 </View>
-              );
-            })}
-          </View>
+                <Button title="Retry" onPress={handleRetry} variant="primary" style={{ marginBottom: Spacing.sm, width: '100%' }} />
+                <Button
+                  title="Go Back"
+                  onPress={() => router.back()}
+                  variant="outline"
+                  style={{ width: '100%' }}
+                />
+              </View>
+            </GlassCard>
+          ) : (
+            <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.stepsCard}>
+              <View style={styles.stepsInner}>
+                {ANALYSIS_STEPS.map((step, index) => {
+                  const isDone = index < activeStep || assessmentResult !== null;
+                  const isActive = index === activeStep && !assessmentResult;
+
+                  return (
+                    <View key={step.label} style={styles.stepRow}>
+                      <View
+                        style={[
+                          styles.stepIconBox,
+                          {
+                            backgroundColor: isDone
+                              ? `${colors.riskLow}18`
+                              : isActive
+                                ? `${colors.primary}18`
+                                : colors.surfaceSunken,
+                          },
+                        ]}
+                      >
+                        {isDone ? (
+                          <Ionicons name="checkmark" size={16} color={colors.riskLow} />
+                        ) : (
+                          <Ionicons
+                            name={step.icon}
+                            size={16}
+                            color={isActive ? colors.primary : colors.textTertiary}
+                          />
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          TypographyScale.body,
+                          {
+                            color: isDone
+                              ? colors.riskLow
+                              : isActive
+                                ? colors.textPrimary
+                                : colors.textTertiary,
+                            fontWeight: isActive ? '600' : '400',
+                            flex: 1,
+                          },
+                        ]}
+                      >
+                        {step.label}
+                      </Text>
+                      {isActive && (
+                        <ActivityIndicator size="small" color={colors.primaryLight} />
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </GlassCard>
+          )}
+        </View>
+
+        {!error && (
+          <Text style={[TypographyScale.caption, styles.footerText, { color: colors.textSecondary }]}>
+            This usually takes 10–30 seconds
+          </Text>
         )}
       </View>
-
-      {!error && (
-        <Text style={styles.footer}>
-          This usually takes 10–30 seconds
-        </Text>
-      )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingBottom: 96,
   },
   content: {
     alignItems: 'center',
     width: '100%',
   },
-  spinner: {
+  indicatorContainer: {
     marginBottom: Spacing.lg,
   },
   title: {
-    fontFamily: Typography.bold,
-    fontSize: 22,
-    color: Colors.textPrimary,
     textAlign: 'center',
+    marginBottom: Spacing.xxs,
   },
   subtitle: {
-    fontFamily: Typography.regular,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xxs,
-    marginBottom: Spacing.xl,
     textAlign: 'center',
+    marginBottom: Spacing.xl,
   },
-  steps: {
-    alignSelf: 'stretch',
+  stepsCard: {
+    width: '100%',
+  },
+  stepsInner: {
+    padding: Spacing.lg,
     gap: Spacing.md,
   },
   stepRow: {
@@ -233,57 +266,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  stepIcon: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
+  stepIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  stepLabel: {
-    fontFamily: Typography.medium,
-    fontSize: 15,
-    color: Colors.textSecondary,
-    flex: 1,
-  },
-  stepDone: {
-    color: Colors.riskLow,
-    textDecorationLine: 'line-through',
-  },
-  stepActive: {
-    fontFamily: Typography.semiBold,
-    color: Colors.textPrimary,
-  },
-  stepSpinner: {
-    marginLeft: Spacing.xs,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: Spacing.xxl,
-    fontFamily: Typography.regular,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-
-  // Error state
-  errorContainer: {
+  errorCard: {
     width: '100%',
-    gap: Spacing.sm,
+  },
+  errorInner: {
+    padding: Spacing.lg,
+    alignItems: 'center',
   },
   errorBanner: {
-    backgroundColor: Colors.riskHigh + '12',
     borderWidth: 1,
-    borderColor: Colors.riskHigh + '30',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+    width: '100%',
   },
-  errorText: {
-    fontFamily: Typography.medium,
-    fontSize: 14,
-    color: Colors.riskHigh,
-    lineHeight: 20,
+  footerText: {
+    position: 'absolute',
+    bottom: 40,
     textAlign: 'center',
-  },
-  backButton: {
-    marginTop: Spacing.xxs,
   },
 });
