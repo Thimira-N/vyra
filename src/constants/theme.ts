@@ -74,15 +74,15 @@ export const LightColors: ColorTokens = {
   background: '#F4F7F9',
   backgroundGradientStart: '#EAF3F5',
   backgroundGradientEnd: '#F7F9FA',
-  blobAccent1: 'rgba(15,76,92,0.10)',
-  blobAccent2: 'rgba(29,122,140,0.08)',
+  blobAccent1: 'rgba(15, 76, 92, 0.16)',
+  blobAccent2: 'rgba(29, 122, 140, 0.14)',
 
   // §2.3 Glass surfaces
-  glassTint: 'rgba(255,255,255,0.55)',
-  glassTintElevated: 'rgba(255,255,255,0.78)',
-  glassBorder: 'rgba(255,255,255,0.6)',
-  glassBorderStrong: 'rgba(255,255,255,0.85)',
-  glassHighlight: 'rgba(255,255,255,0.9)',
+  glassTint: 'rgba(255, 255, 255, 0.65)',
+  glassTintElevated: 'rgba(255, 255, 255, 0.82)',
+  glassBorder: 'rgba(255, 255, 255, 0.55)',
+  glassBorderStrong: 'rgba(255, 255, 255, 0.85)',
+  glassHighlight: 'rgba(255, 255, 255, 0.85)',
 
   // §2.4 Surface
   surface: '#FFFFFF',
@@ -118,15 +118,15 @@ export const DarkColors: ColorTokens = {
   background: '#0B1418',
   backgroundGradientStart: '#0B1418',
   backgroundGradientEnd: '#101E24',
-  blobAccent1: 'rgba(79,209,224,0.08)',
-  blobAccent2: 'rgba(29,122,140,0.10)',
+  blobAccent1: 'rgba(79, 209, 224, 0.18)',
+  blobAccent2: 'rgba(29, 122, 140, 0.20)',
 
   // §2.3 Glass surfaces
-  glassTint: 'rgba(18,28,32,0.55)',
-  glassTintElevated: 'rgba(16,24,28,0.82)',
-  glassBorder: 'rgba(255,255,255,0.08)',
-  glassBorderStrong: 'rgba(255,255,255,0.14)',
-  glassHighlight: 'rgba(255,255,255,0.06)',
+  glassTint: 'rgba(18, 28, 32, 0.60)',
+  glassTintElevated: 'rgba(16, 24, 28, 0.82)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  glassBorderStrong: 'rgba(255, 255, 255, 0.20)',
+  glassHighlight: 'rgba(255, 255, 255, 0.15)',
 
   // §2.4 Surface
   surface: '#141F24',

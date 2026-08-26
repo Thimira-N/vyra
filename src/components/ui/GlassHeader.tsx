@@ -55,6 +55,13 @@ export function GlassHeader({ children, style }: GlassHeaderProps) {
         {
           borderBottomWidth: 1,
           borderBottomColor: colors.glassBorder,
+          backgroundColor: colors.glassTint,
+          ...(Platform.OS === 'web'
+            ? {
+                backdropFilter: `blur(${blurAmount}px)`,
+                WebkitBackdropFilter: `blur(${blurAmount}px)`,
+              }
+            : {}),
         },
         style,
       ]}

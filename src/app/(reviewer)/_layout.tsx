@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Tabs } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@/hooks/use-theme';
@@ -43,7 +43,7 @@ function TabBarIcon({
 }
 
 function GlassTabBarBackground() {
-  const { colors, isDark, glassIntensity } = useTheme();
+  const { colors, isDark, glassIntensity, elevation } = useTheme();
 
   if (glassIntensity === 'off') {
     return (
@@ -55,6 +55,7 @@ function GlassTabBarBackground() {
             borderRadius: Radius.xl,
             borderWidth: 1,
             borderColor: colors.border,
+            ...elevation.floating,
           },
         ]}
       />
@@ -65,7 +66,25 @@ function GlassTabBarBackground() {
   const blurAmount = glassIntensity === 'reduced' ? Math.round(rawBlur * 0.5) : rawBlur;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { borderRadius: Radius.xl, overflow: 'hidden' }]}>
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          borderRadius: Radius.xl,
+          overflow: 'hidden',
+          backgroundColor: colors.glassTint,
+          borderWidth: 1,
+          borderColor: colors.glassBorder,
+          ...(Platform.OS === 'web'
+            ? {
+                backdropFilter: `blur(${blurAmount}px)`,
+                WebkitBackdropFilter: `blur(${blurAmount}px)`,
+              }
+            : {}),
+          ...elevation.floating,
+        },
+      ]}
+    >
       <BlurView
         intensity={blurAmount}
         tint={isDark ? 'dark' : 'light'}
@@ -88,7 +107,7 @@ function GlassTabBarBackground() {
 }
 
 export default function ReviewerLayout() {
-  const { colors, elevation } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tabs
@@ -108,12 +127,18 @@ export default function ReviewerLayout() {
           height: 64,
           borderRadius: Radius.xl,
           borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: colors.glassBorder,
+          borderWidth: 0,
           backgroundColor: 'transparent',
+          elevation: 0,
+          shadowOpacity: 0,
           paddingBottom: 8,
           paddingTop: 8,
-          ...elevation.floating,
+          ...(Platform.OS === 'web'
+            ? {
+                maxWidth: 580,
+                marginHorizontal: 'auto',
+              }
+            : {}),
         },
         tabBarBackground: () => <GlassTabBarBackground />,
         headerTransparent: true,
@@ -143,7 +168,7 @@ export default function ReviewerLayout() {
       <Tabs.Screen
         name="case/[id]"
         options={{
-          href: null, // Hidden from tab bar — accessed via dashboard navigation
+          href: null,
           headerShown: false,
         }}
       />

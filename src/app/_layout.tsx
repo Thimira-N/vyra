@@ -19,6 +19,7 @@ import {
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -124,6 +125,7 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,

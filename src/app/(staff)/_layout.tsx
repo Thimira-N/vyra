@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Tabs, router } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@/hooks/use-theme';
@@ -22,6 +22,7 @@ function NotificationBell() {
       style={styles.bellButton}
       onPress={() => (router.push as any)('/(staff)/notifications')}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityLabel="Notifications"
     >
       <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
       {unreadCount > 0 && (
@@ -73,7 +74,7 @@ function TabBarIcon({
 }
 
 function GlassTabBarBackground() {
-  const { colors, isDark, glassIntensity } = useTheme();
+  const { colors, isDark, glassIntensity, elevation } = useTheme();
 
   if (glassIntensity === 'off') {
     return (
@@ -85,6 +86,7 @@ function GlassTabBarBackground() {
             borderRadius: Radius.xl,
             borderWidth: 1,
             borderColor: colors.border,
+            ...elevation.floating,
           },
         ]}
       />
@@ -95,7 +97,25 @@ function GlassTabBarBackground() {
   const blurAmount = glassIntensity === 'reduced' ? Math.round(rawBlur * 0.5) : rawBlur;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { borderRadius: Radius.xl, overflow: 'hidden' }]}>
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          borderRadius: Radius.xl,
+          overflow: 'hidden',
+          backgroundColor: colors.glassTint,
+          borderWidth: 1,
+          borderColor: colors.glassBorder,
+          ...(Platform.OS === 'web'
+            ? {
+                backdropFilter: `blur(${blurAmount}px)`,
+                WebkitBackdropFilter: `blur(${blurAmount}px)`,
+              }
+            : {}),
+          ...elevation.floating,
+        },
+      ]}
+    >
       <BlurView
         intensity={blurAmount}
         tint={isDark ? 'dark' : 'light'}
@@ -118,7 +138,7 @@ function GlassTabBarBackground() {
 }
 
 export default function StaffLayout() {
-  const { colors, elevation } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tabs
@@ -138,12 +158,18 @@ export default function StaffLayout() {
           height: 64,
           borderRadius: Radius.xl,
           borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: colors.glassBorder,
+          borderWidth: 0,
           backgroundColor: 'transparent',
+          elevation: 0,
+          shadowOpacity: 0,
           paddingBottom: 8,
           paddingTop: 8,
-          ...elevation.floating,
+          ...(Platform.OS === 'web'
+            ? {
+                maxWidth: 580,
+                marginHorizontal: 'auto',
+              }
+            : {}),
         },
         tabBarBackground: () => <GlassTabBarBackground />,
         headerTransparent: true,
@@ -199,6 +225,13 @@ export default function StaffLayout() {
               color={color}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="history/[id]"
+        options={{
+          href: null,
+          headerShown: false,
         }}
       />
       <Tabs.Screen

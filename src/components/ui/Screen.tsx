@@ -1,8 +1,8 @@
 /**
  * Screen — standard screen wrapper with gradient mesh background.
  *
- * Phase U0: Renders the gradient mesh (backgroundGradientStart/End) plus
- * two blurred decorative blob shapes (blobAccent1/2) per Spec §2.2 and §6.4.
+ * Phase U0/U6: Renders the gradient mesh (backgroundGradientStart/End) plus
+ * three blurred decorative luminous blob shapes (blobAccent1/2) per Spec §2.2 and §6.4.
  *
  * Individual screens wrap their content in <Screen> instead of hand-rolling
  * backgrounds. Handles SafeAreaView and StatusBar insets.
@@ -12,6 +12,7 @@ import React from 'react';
 import {
   View,
   StyleSheet,
+  Platform,
   type ViewStyle,
   type StyleProp,
 } from 'react-native';
@@ -25,8 +26,7 @@ interface ScreenProps {
   style?: StyleProp<ViewStyle>;
   /** Whether to apply safe area insets (default: true) */
   safeArea?: boolean;
-  /** Whether to show decorative blob accents (default: true).
-   *  Set to false on dense data screens per Spec §5 guidance. */
+  /** Whether to show decorative blob accents (default: true). */
   showBlobs?: boolean;
 }
 
@@ -51,22 +51,53 @@ export function Screen({
 
       {/* Decorative blurred blobs per §2.2 / §5 */}
       {showBlobs && (
-        <>
+        <View style={styles.blobLayer} pointerEvents="none">
           <View
             style={[
               styles.blob,
               styles.blob1,
-              { backgroundColor: colors.blobAccent1 },
+              {
+                backgroundColor: colors.blobAccent1,
+                ...(Platform.OS === 'web'
+                  ? {
+                      filter: 'blur(60px)',
+                      WebkitFilter: 'blur(60px)',
+                    }
+                  : {}),
+              },
             ]}
           />
           <View
             style={[
               styles.blob,
               styles.blob2,
-              { backgroundColor: colors.blobAccent2 },
+              {
+                backgroundColor: colors.blobAccent2,
+                ...(Platform.OS === 'web'
+                  ? {
+                      filter: 'blur(70px)',
+                      WebkitFilter: 'blur(70px)',
+                    }
+                  : {}),
+              },
             ]}
           />
-        </>
+          <View
+            style={[
+              styles.blob,
+              styles.blob3,
+              {
+                backgroundColor: colors.blobAccent1,
+                ...(Platform.OS === 'web'
+                  ? {
+                      filter: 'blur(65px)',
+                      WebkitFilter: 'blur(65px)',
+                    }
+                  : {}),
+              },
+            ]}
+          />
+        </View>
       )}
 
       {/* Content */}
@@ -88,29 +119,44 @@ export function Screen({
   );
 }
 
-const BLOB_SIZE = 280;
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  blobLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
   },
   content: {
     flex: 1,
   },
   blob: {
     position: 'absolute',
-    width: BLOB_SIZE,
-    height: BLOB_SIZE,
-    borderRadius: BLOB_SIZE / 2,
-    // Soft-edged blurred circle — the opacity in blobAccent tokens
-    // and the large border-radius create a naturally soft edge.
   },
   blob1: {
-    top: -60,
-    right: -40,
+    top: -80,
+    right: -60,
+    width: 380,
+    height: 380,
+    borderRadius: 190,
   },
   blob2: {
-    top: 200,
-    left: -80,
+    top: 240,
+    left: -100,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+  },
+  blob3: {
+    bottom: 60,
+    right: -40,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
   },
 });
