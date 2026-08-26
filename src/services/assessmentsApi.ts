@@ -133,16 +133,24 @@ export async function createAssessment(draft: CreateAssessmentDraft): Promise<As
     const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
     const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
-    // React Native FormData expects this shape for file uploads
-    formData.append('file', {
-      uri: draft.imageUri,
-      name: filename,
-      type: mimeType,
-    } as any);
+    if (Platform.OS === 'web') {
+      // On web, FormData.append() needs a real Blob/File — the RN
+      // { uri, name, type } object shape gets coerced to the literal
+      // string "[object Object]" here instead.
+      const fileBlob = await fetch(draft.imageUri).then((res) => res.blob());
+      formData.append('file', fileBlob, filename);
+    } else {
+      // React Native (iOS/Android) FormData expects this shape for file uploads
+      formData.append('file', {
+        uri: draft.imageUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+    }
   }
 
   const { data } = await api.post<AssessmentOut>('/assessments/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
     timeout: 120000, // ML inference can take a while on CPU
   });
   return data;

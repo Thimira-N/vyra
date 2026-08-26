@@ -56,9 +56,13 @@ export default function PdfViewerScreen() {
     setLoading(true);
     setError(null);
     try {
-      const dest = new File(Paths.cache, `report-${Date.now()}.pdf`);
-      const downloaded = await File.downloadFileAsync(url, dest, { idempotent: true });
-      setLocalFile(downloaded);
+      if (Platform.OS === 'web') {
+        setLocalFile({ uri: url } as any);
+      } else {
+        const dest = new File(Paths.cache, `report-${Date.now()}.pdf`);
+        const downloaded = await File.downloadFileAsync(url, dest, { idempotent: true });
+        setLocalFile(downloaded);
+      }
     } catch (e) {
       setError('Unable to load the PDF report. Check your connection and try again.');
     } finally {
@@ -76,7 +80,9 @@ export default function PdfViewerScreen() {
     if (!localFile) return;
     setBusy('download');
     try {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === 'web') {
+        window.open(localFile.uri, '_blank');
+      } else if (Platform.OS === 'android') {
         const safeName = String(displayTitle).replace(/[^a-z0-9\-_]+/gi, '_') + '.pdf';
         
           let savedUri = await SecureStore.getItemAsync('downloads_dir_uri');
@@ -148,11 +154,16 @@ export default function PdfViewerScreen() {
     if (!localFile) return;
     setBusy('share');
     try {
-      await Sharing.shareAsync(localFile.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Share or Save Report',
-        UTI: 'com.adobe.pdf',
-      });
+      if (Platform.OS === 'web') {
+        await navigator.clipboard.writeText(localFile.uri);
+        Alert.alert('Copied', 'Report link copied to clipboard.');
+      } else {
+        await Sharing.shareAsync(localFile.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share or Save Report',
+          UTI: 'com.adobe.pdf',
+        });
+      }
     } catch (e) {
       Alert.alert('Share failed', 'Unable to share the report. Please try again.');
     } finally {
@@ -266,18 +277,26 @@ export default function PdfViewerScreen() {
       )}
 
       {!loading && !error && webSource && (
-        <WebView
-          source={webSource}
-          style={styles.webview}
-          originWhitelist={['*']}
-          startInLoadingState
-          renderLoading={() => (
-            <View style={styles.centered}>
-              <ActivityIndicator color={Colors.primary} size="large" />
-            </View>
-          )}
-          onError={() => setError('Unable to display the PDF report.')}
-        />
+        Platform.OS === 'web' ? (
+          <iframe
+            src={webSource.uri}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            title="PDF Report"
+          />
+        ) : (
+          <WebView
+            source={webSource}
+            style={styles.webview}
+            originWhitelist={['*']}
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.centered}>
+                <ActivityIndicator color={Colors.primary} size="large" />
+              </View>
+            )}
+            onError={() => setError('Unable to display the PDF report.')}
+          />
+        )
       )}
     </View>
   );
