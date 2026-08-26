@@ -1,18 +1,18 @@
 /**
- * RiskBadge — Renders Low/Medium/High in the corresponding risk color.
+ * RiskBadge — Renders Low/Medium/High risk level.
  *
- * Spec §5: "Risk badges are the one place color carries real semantic weight —
- * Low/Medium/High always render in the same three colors everywhere in the app."
- *
- * Colors:
- *   Low    → #2E9E5B (riskLow)
- *   Medium → #E0A100 (riskMedium)
- *   High   → #D14343 (riskHigh)
+ * U1 restyle per Spec §7:
+ *   - Pill shape (radius: pill / 999)
+ *   - Tinted-glass background: risk color @ 15% opacity
+ *   - Text/icon in full-saturation risk color
+ *   - Keeps the same three-state color mapping
+ *   - Dot + label for colorblind-safety (§8.5)
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
-import { Colors, Typography, Spacing, getRiskColor, type RiskLevel } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius, type RiskLevel } from '@/constants/theme';
 
 interface RiskBadgeProps {
   level: RiskLevel;
@@ -26,7 +26,16 @@ export default function RiskBadge({
   size = 'default',
   style,
 }: RiskBadgeProps) {
-  const color = getRiskColor(level);
+  const { colors } = useTheme();
+
+  // Resolve risk color from theme tokens (respects light/dark mode)
+  const riskColorMap: Record<RiskLevel, string> = {
+    Low: colors.riskLow,
+    Medium: colors.riskMedium,
+    High: colors.riskHigh,
+  };
+  const color = riskColorMap[level];
+
   const sizeConfig = sizes[size];
 
   return (
@@ -34,21 +43,32 @@ export default function RiskBadge({
       style={[
         styles.badge,
         {
-          backgroundColor: `${color}18`,
+          backgroundColor: `${color}26`, // 15% opacity (hex 26 ≈ 15%)
           borderColor: `${color}40`,
+          borderRadius: Radius.pill,
           paddingHorizontal: sizeConfig.paddingH,
           paddingVertical: sizeConfig.paddingV,
         },
         style,
       ]}
     >
-      <View style={[styles.dot, { backgroundColor: color, width: sizeConfig.dotSize, height: sizeConfig.dotSize }]} />
+      <View
+        style={[
+          styles.dot,
+          {
+            backgroundColor: color,
+            width: sizeConfig.dotSize,
+            height: sizeConfig.dotSize,
+          },
+        ]}
+      />
       <Text
         style={[
-          styles.label,
+          TypographyScale.caption,
           {
             color,
             fontSize: sizeConfig.fontSize,
+            fontFamily: TypographyScale.caption.fontFamily,
           },
         ]}
       >
@@ -67,22 +87,15 @@ const sizes = {
   large: { fontSize: 16, paddingH: Spacing.md, paddingV: Spacing.xs, dotSize: 10 },
 } as const;
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
   dot: {
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     marginRight: Spacing.xxs + 2,
-  },
-  label: {
-    fontFamily: Typography.semiBold,
   },
 });

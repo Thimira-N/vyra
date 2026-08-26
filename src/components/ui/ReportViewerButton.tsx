@@ -1,5 +1,12 @@
+/**
+ * ReportViewerButton — Thin wrapper around Button for PDF report viewing.
+ *
+ * U1: Confirmed clean — delegates all styling to Button (restyled in this phase).
+ * Business logic (API call, navigation) is unchanged.
+ */
+
 import React, { useState } from 'react';
-import { Alert, ViewStyle } from 'react-native';
+import { Alert, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import Button from './Button';
 import { getAssessmentReportUrl } from '@/services/assessmentsApi';

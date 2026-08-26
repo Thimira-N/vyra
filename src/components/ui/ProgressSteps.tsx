@@ -2,13 +2,20 @@
  * ProgressSteps — Step indicator for the new-assessment wizard flow.
  * Shows completed, current, and upcoming steps.
  *
+ * U1 restyle per Spec §7:
+ *   - Active step: filled primary circle + connecting line in primary
+ *   - Completed: primary outline + checkmark
+ *   - Upcoming: border-colored outline
+ *   - No glass — small UI, glass adds noise not depth
+ *
  * Used in the staff new-assessment flow (Spec §6.2):
  *   1. Patient Info → 2. Symptoms → 3. Image → 4. Vitals → 5. Review
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing } from '@/constants/theme';
 
 interface ProgressStepsProps {
   /** Labels for each step */
@@ -18,6 +25,8 @@ interface ProgressStepsProps {
 }
 
 export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
       {steps.map((label, index) => {
@@ -32,9 +41,10 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
               <View
                 style={[
                   styles.connector,
-                  isCompleted || isCurrent
-                    ? styles.connectorActive
-                    : styles.connectorInactive,
+                  {
+                    backgroundColor:
+                      isCompleted || isCurrent ? colors.primary : colors.border,
+                  },
                 ]}
               />
             )}
@@ -43,19 +53,36 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
             <View
               style={[
                 styles.circle,
-                isCompleted && styles.circleCompleted,
-                isCurrent && styles.circleCurrent,
-                isUpcoming && styles.circleUpcoming,
+                isCompleted && {
+                  backgroundColor: 'transparent',
+                  borderWidth: 2,
+                  borderColor: colors.primary,
+                },
+                isCurrent && {
+                  backgroundColor: colors.primary,
+                },
+                isUpcoming && {
+                  backgroundColor: 'transparent',
+                  borderWidth: 1.5,
+                  borderColor: colors.border,
+                },
               ]}
             >
               {isCompleted ? (
-                <Text style={styles.checkmark}>✓</Text>
+                <Text
+                  style={[
+                    styles.checkmark,
+                    { color: colors.primary },
+                  ]}
+                >
+                  ✓
+                </Text>
               ) : (
                 <Text
                   style={[
                     styles.stepNumber,
-                    isCurrent && styles.stepNumberCurrent,
-                    isUpcoming && styles.stepNumberUpcoming,
+                    isCurrent && { color: colors.textOnPrimary },
+                    isUpcoming && { color: colors.textSecondary },
                   ]}
                 >
                   {index + 1}
@@ -66,9 +93,14 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
             {/* Step label */}
             <Text
               style={[
+                TypographyScale.caption,
                 styles.label,
-                isCurrent && styles.labelCurrent,
-                isUpcoming && styles.labelUpcoming,
+                { color: colors.textPrimary },
+                isCurrent && {
+                  fontFamily: TypographyScale.button.fontFamily,
+                  color: colors.primary,
+                },
+                isUpcoming && { color: colors.textSecondary },
               ]}
               numberOfLines={1}
             >
@@ -108,12 +140,6 @@ const styles = StyleSheet.create({
     height: 2,
     zIndex: -1,
   },
-  connectorActive: {
-    backgroundColor: Colors.primary,
-  },
-  connectorInactive: {
-    backgroundColor: Colors.border,
-  },
 
   // Step circle
   circle: {
@@ -124,49 +150,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xxs,
   },
-  circleCompleted: {
-    backgroundColor: Colors.primary,
-  },
-  circleCurrent: {
-    backgroundColor: Colors.primary,
-    borderWidth: 2,
-    borderColor: Colors.primaryLight,
-  },
-  circleUpcoming: {
-    backgroundColor: Colors.background,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-  },
 
   // Number / checkmark inside circle
   checkmark: {
-    fontFamily: Typography.bold,
+    fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    color: Colors.surface,
   },
   stepNumber: {
-    fontFamily: Typography.semiBold,
+    fontFamily: TypographyScale.caption.fontFamily,
     fontSize: 12,
-  },
-  stepNumberCurrent: {
-    color: Colors.surface,
-  },
-  stepNumberUpcoming: {
-    color: Colors.textSecondary,
   },
 
   // Label below circle
   label: {
-    fontFamily: Typography.medium,
-    fontSize: 11,
-    color: Colors.textPrimary,
     textAlign: 'center',
-  },
-  labelCurrent: {
-    fontFamily: Typography.semiBold,
-    color: Colors.primary,
-  },
-  labelUpcoming: {
-    color: Colors.textSecondary,
+    fontSize: 11,
   },
 });

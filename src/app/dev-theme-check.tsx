@@ -1,14 +1,14 @@
 /**
- * Dev Theme Check — throwaway screen for verifying U0 theming foundation.
+ * Dev Theme Check — throwaway screen for verifying U0 & U1 theming + shared components.
  *
- * Renders GlassCard, a themed Button, and text at every Typography token
- * in both Light and Dark modes. Delete before U6 closeout or keep behind
- * a dev flag.
+ * Renders GlassCard, Button variants, TextField variants, RiskBadge, ProgressSteps,
+ * VitalsInputGrid, RiskProbabilityBar, Typography tokens, and Color swatches
+ * in both Light and Dark modes.
  *
  * Route: /dev-theme-check
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   View,
@@ -20,6 +20,12 @@ import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassHeader } from '@/components/ui/GlassHeader';
+import Button from '@/components/ui/Button';
+import TextField from '@/components/ui/TextField';
+import RiskBadge from '@/components/ui/RiskBadge';
+import ProgressSteps from '@/components/ui/ProgressSteps';
+import VitalsInputGrid from '@/components/ui/VitalsInputGrid';
+import RiskProbabilityBar from '@/components/charts/RiskProbabilityBar';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 import type { ThemeMode } from '@/store/settingsStore';
@@ -27,6 +33,16 @@ import type { ThemeMode } from '@/store/settingsStore';
 export default function DevThemeCheck() {
   const { colors, elevation, isDark, mode, setMode, reduceMotion, glassIntensity } = useTheme();
   const router = useRouter();
+
+  const [testText, setTestText] = useState('Patient Name');
+  const [vitalsValues, setVitalsValues] = useState<Record<string, number>>({
+    HR: 78,
+    O2Sat: 98,
+    Temp: 36.8,
+    SBP: 115,
+    DBP: 75,
+    Resp: 16,
+  });
 
   const modes: ThemeMode[] = ['system', 'light', 'dark'];
 
@@ -38,7 +54,7 @@ export default function DevThemeCheck() {
       >
         {/* Header */}
         <Text style={[TypographyScale.h1, { color: colors.textPrimary, marginBottom: Spacing.xs }]}>
-          🎨 Theme Check
+          🎨 U1 Component & Theme Check
         </Text>
         <Text style={[TypographyScale.body, { color: colors.textSecondary, marginBottom: Spacing.lg }]}>
           Mode: {mode} | isDark: {String(isDark)} | Glass: {glassIntensity} | ReduceMotion: {String(reduceMotion)}
@@ -77,15 +93,139 @@ export default function DevThemeCheck() {
           </View>
         </GlassCard>
 
-        {/* Typography scale */}
+        {/* U1: Button Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          Buttons (Spec §7)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={[styles.sectionPadding, { gap: Spacing.sm }]}>
+            <Button
+              title="Primary Button (Gradient + Shadow)"
+              onPress={() => {}}
+              variant="primary"
+            />
+            <Button
+              title="Outline Button (GlassCard + Border)"
+              onPress={() => {}}
+              variant="outline"
+            />
+            <Button
+              title="Ghost Button (Text Only)"
+              onPress={() => {}}
+              variant="ghost"
+            />
+            <Button
+              title="Loading Primary"
+              onPress={() => {}}
+              variant="primary"
+              loading
+            />
+            <Button
+              title="Disabled State"
+              onPress={() => {}}
+              variant="primary"
+              disabled
+            />
+          </View>
+        </GlassCard>
+
+        {/* U1: TextField Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          TextFields (Spec §7)
+        </Text>
         <GlassCard style={styles.section}>
           <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.h3, { color: colors.textPrimary, marginBottom: Spacing.sm }]}>
-              Typography Scale
-            </Text>
+            <TextField
+              label="Patient Full Name"
+              placeholder="e.g. John Doe"
+              value={testText}
+              onChangeText={setTestText}
+              helperText="Floating label animated above input on focus/value"
+            />
+            <TextField
+              label="Medical Record Number (MRN)"
+              placeholder="e.g. MRN-10293"
+              defaultValue=""
+            />
+            <TextField
+              label="Systolic BP (Error state)"
+              value="220"
+              error="Value outside expected clinical physiological limit"
+            />
+          </View>
+        </GlassCard>
+
+        {/* U1: RiskBadge Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          Risk Badges (Pill + Tinted Glass)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={[styles.sectionPadding, { gap: Spacing.sm }]}>
+            <View style={styles.rowWrap}>
+              <RiskBadge level="Low" size="small" />
+              <RiskBadge level="Medium" size="small" />
+              <RiskBadge level="High" size="small" />
+            </View>
+            <View style={styles.rowWrap}>
+              <RiskBadge level="Low" size="default" />
+              <RiskBadge level="Medium" size="default" />
+              <RiskBadge level="High" size="default" />
+            </View>
+            <View style={styles.rowWrap}>
+              <RiskBadge level="Low" size="large" />
+              <RiskBadge level="Medium" size="large" />
+              <RiskBadge level="High" size="large" />
+            </View>
+          </View>
+        </GlassCard>
+
+        {/* U1: ProgressSteps Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          ProgressSteps (Spec §7)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={styles.sectionPadding}>
+            <ProgressSteps
+              steps={['Patient', 'Symptoms', 'Image', 'Vitals', 'Review']}
+              currentStep={2}
+            />
+          </View>
+        </GlassCard>
+
+        {/* U1: RiskProbabilityBar Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          RiskProbabilityBar (Spec §6.2)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={styles.sectionPadding}>
+            <RiskProbabilityBar
+              probabilities={{ Low: 20, Medium: 55, High: 25 }}
+            />
+          </View>
+        </GlassCard>
+
+        {/* U1: VitalsInputGrid Restyle Demo */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          VitalsInputGrid (Spec §6.2)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={styles.sectionPadding}>
+            <VitalsInputGrid
+              values={vitalsValues}
+              onChange={setVitalsValues}
+            />
+          </View>
+        </GlassCard>
+
+        {/* Typography scale */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          Typography Scale (Spec §4)
+        </Text>
+        <GlassCard style={styles.section}>
+          <View style={styles.sectionPadding}>
             {Object.entries(TypographyScale).map(([name, token]) => (
               <View key={name} style={styles.typographyRow}>
-                <Text style={[TypographyScale.caption, { color: colors.textTertiary, width: 80 }]}>
+                <Text style={[TypographyScale.caption, { color: colors.textTertiary, width: 85 }]}>
                   {name}
                 </Text>
                 <Text style={[token, { color: colors.textPrimary, flex: 1 }]}>
@@ -97,11 +237,11 @@ export default function DevThemeCheck() {
         </GlassCard>
 
         {/* Color swatches */}
+        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+          Color Tokens (Spec §2)
+        </Text>
         <GlassCard style={styles.section}>
           <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.h3, { color: colors.textPrimary, marginBottom: Spacing.sm }]}>
-              Color Tokens
-            </Text>
             <View style={styles.swatchGrid}>
               {([
                 ['primary', colors.primary],
@@ -137,142 +277,14 @@ export default function DevThemeCheck() {
           </View>
         </GlassCard>
 
-        {/* Text tokens */}
-        <GlassCard style={styles.section}>
-          <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.h3, { color: colors.textPrimary, marginBottom: Spacing.sm }]}>
-              Text Tokens
-            </Text>
-            <Text style={[TypographyScale.body, { color: colors.textPrimary, marginBottom: Spacing.xxs }]}>
-              textPrimary: Main body text
-            </Text>
-            <Text style={[TypographyScale.body, { color: colors.textSecondary, marginBottom: Spacing.xxs }]}>
-              textSecondary: Labels, helper text
-            </Text>
-            <Text style={[TypographyScale.body, { color: colors.textTertiary, marginBottom: Spacing.xxs }]}>
-              textTertiary: Placeholders, disabled
-            </Text>
-            <View
-              style={[
-                styles.onPrimaryBox,
-                { backgroundColor: colors.primary, borderRadius: Radius.sm },
-              ]}
-            >
-              <Text style={[TypographyScale.body, { color: colors.textOnPrimary }]}>
-                textOnPrimary: On brand fill
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
-
-        {/* Glass variants */}
-        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-          Glass Variants
-        </Text>
-
-        <GlassCard tint="default" elevation="raised" style={styles.section}>
-          <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.body, { color: colors.textPrimary }]}>
-              Default tint, raised elevation
-            </Text>
-          </View>
-        </GlassCard>
-
-        <GlassCard tint="elevated" elevation="floating" style={styles.section}>
-          <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.body, { color: colors.textPrimary }]}>
-              Elevated tint, floating elevation
-            </Text>
-          </View>
-        </GlassCard>
-
-        <GlassCard borderStrong elevation="raised" style={styles.section}>
-          <View style={styles.sectionPadding}>
-            <Text style={[TypographyScale.body, { color: colors.textPrimary }]}>
-              Strong border (critical data card)
-            </Text>
-          </View>
-        </GlassCard>
-
-        {/* Elevation comparison */}
-        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-          Elevation Levels
-        </Text>
-
-        {(['flat', 'raised', 'floating', 'overlay'] as const).map((level) => (
-          <GlassCard key={level} elevation={level} style={styles.section}>
-            <View style={styles.sectionPadding}>
-              <Text style={[TypographyScale.body, { color: colors.textPrimary }]}>
-                {level}
-              </Text>
-            </View>
-          </GlassCard>
-        ))}
-
-        {/* Themed button demo */}
-        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-          Themed Button (inline demo)
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: colors.primary,
-              borderRadius: Radius.md,
-              opacity: pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-              ...elevation.raised,
-            },
-          ]}
-        >
-          <Text style={[TypographyScale.button, { color: colors.textOnPrimary }]}>
-            Primary Button
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: 'transparent',
-              borderRadius: Radius.md,
-              borderWidth: 1.5,
-              borderColor: colors.primary,
-              opacity: pressed ? 0.8 : 1,
-              marginTop: Spacing.sm,
-            },
-          ]}
-        >
-          <Text style={[TypographyScale.button, { color: colors.primary }]}>
-            ← Go Back
-          </Text>
-        </Pressable>
-
-        {/* Numeric display demo */}
-        <GlassCard borderStrong style={[styles.section, { marginTop: Spacing.lg }]}>
-          <View style={[styles.sectionPadding, { alignItems: 'center' }]}>
-            <Text style={[TypographyScale.caption, { color: colors.textSecondary }]}>
-              Risk Score (numericLg token)
-            </Text>
-            <Text style={[TypographyScale.numericLg, { color: colors.riskMedium }]}>
-              72
-            </Text>
-          </View>
-        </GlassCard>
-
-        {/* GlassHeader demo */}
-        <Text style={[TypographyScale.h2, { color: colors.textPrimary, marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-          GlassHeader Demo
-        </Text>
-        <GlassHeader style={styles.headerDemo}>
-          <View style={styles.headerContent}>
-            <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>
-              Translucent Header
-            </Text>
-          </View>
-        </GlassHeader>
+        {/* Navigation Demo */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Button
+            title="← Back to Login"
+            onPress={() => router.back()}
+            variant="outline"
+          />
+        </View>
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
@@ -302,6 +314,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     alignItems: 'center',
   },
+  rowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
   typographyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,22 +339,5 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     marginBottom: Spacing.xxs,
-  },
-  onPrimaryBox: {
-    padding: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  primaryButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerDemo: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  headerContent: {
-    padding: Spacing.md,
   },
 });

@@ -1,20 +1,30 @@
 /**
- * Button — Primary, secondary, and outline variants.
- * All interactive targets ≥ 44×44pt (Spec §5 accessibility requirement).
+ * Button — Primary, outline, and ghost variants.
+ * All interactive targets ≥ 44×44pt (accessibility requirement).
+ *
+ * U1 restyle per Spec §7:
+ *   primary: gradient fill, md radius, button type token, raised shadow,
+ *            96%-scale press animation (120ms).
+ *   outline: glass button (GlassCard bg + glassBorderStrong), text primary.
+ *   ghost:   repointed to new tokens, transparent bg.
+ *   disabled: 40% opacity, no shadow.
  */
 
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
-  StyleSheet,
+  View,
   ActivityIndicator,
+  Animated,
   type ViewStyle,
-  type TextStyle,
 } from 'react-native';
-import { Colors, Typography, Spacing } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline';
+type ButtonVariant = 'primary' | 'outline' | 'ghost';
 
 interface ButtonProps {
   title: string;
@@ -33,89 +43,152 @@ export default function Button({
   loading = false,
   style,
 }: ButtonProps) {
+  const { colors, elevation, reduceMotion } = useTheme();
   const isDisabled = disabled || loading;
 
+  // 96%-scale press animation (120ms ease-out) per Spec §1.4 / §7
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = useCallback(() => {
+    if (reduceMotion) return;
+    Animated.timing(scaleAnim, {
+      toValue: 0.96,
+      duration: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim, reduceMotion]);
+
+  const onPressOut = useCallback(() => {
+    if (reduceMotion) return;
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim, reduceMotion]);
+
+  // ── Outline variant: glass button ──
+  if (variant === 'outline') {
+    return (
+      <Animated.View
+        style={[
+          { transform: [{ scale: scaleAnim }] },
+          isDisabled && { opacity: 0.4 },
+          style,
+        ]}
+      >
+        <GlassCard
+          elevation={isDisabled ? 'flat' : 'raised'}
+          radius="md"
+          borderStrong
+          style={{
+            minHeight: 48,
+            paddingHorizontal: Spacing.lg,
+            paddingVertical: Spacing.sm,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+          }}
+        >
+          <Pressable
+            onPress={onPress}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            disabled={isDisabled}
+            style={{
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={[TypographyScale.button, { color: colors.primary }]}>
+                {title}
+              </Text>
+            )}
+          </Pressable>
+        </GlassCard>
+      </Animated.View>
+    );
+  }
+
+  // ── Ghost variant: text-only, transparent bg ──
+  if (variant === 'ghost') {
+    return (
+      <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          disabled={isDisabled}
+          style={[
+            {
+              minHeight: 48,
+              paddingHorizontal: Spacing.md,
+              paddingVertical: Spacing.sm,
+              borderRadius: Radius.md,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+            isDisabled && { opacity: 0.4 },
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text style={[TypographyScale.button, { color: colors.primary }]}>
+              {title}
+            </Text>
+          )}
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  // ── Primary variant: gradient fill ──
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={isDisabled}
-      activeOpacity={0.7}
+    <Animated.View
       style={[
-        styles.base,
-        variantStyles[variant].container,
-        isDisabled && styles.disabled,
+        { transform: [{ scale: scaleAnim }] },
+        isDisabled && { opacity: 0.4 },
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'outline' ? Colors.primary : Colors.surface}
-        />
-      ) : (
-        <Text
-          style={[
-            styles.label,
-            variantStyles[variant].label,
-            isDisabled && styles.disabledLabel,
-          ]}
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={isDisabled}
+        style={{
+          borderRadius: Radius.md,
+          overflow: 'hidden',
+          ...(isDisabled ? {} : elevation.raised),
+        }}
+      >
+        <LinearGradient
+          colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{
+            minHeight: 48,
+            paddingHorizontal: Spacing.lg,
+            paddingVertical: Spacing.sm,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.textOnPrimary} />
+          ) : (
+            <Text
+              style={[TypographyScale.button, { color: colors.textOnPrimary }]}
+            >
+              {title}
+            </Text>
+          )}
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 48,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontFamily: Typography.semiBold,
-    fontSize: 16,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  disabledLabel: {
-    opacity: 0.7,
-  },
-});
-
-const variantStyles: Record<ButtonVariant, { container: ViewStyle; label: TextStyle }> = {
-  primary: {
-    container: {
-      backgroundColor: Colors.primary,
-    },
-    label: {
-      color: Colors.surface,
-    },
-  },
-  secondary: {
-    container: {
-      backgroundColor: Colors.primaryLight,
-    },
-    label: {
-      color: Colors.surface,
-    },
-  },
-  outline: {
-    container: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: Colors.primary,
-    },
-    label: {
-      color: Colors.primary,
-    },
-  },
-};

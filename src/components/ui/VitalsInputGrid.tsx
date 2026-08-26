@@ -4,12 +4,15 @@
  * 2-column numeric input grid for vital signs with clinical normal ranges
  * as helper text. Core vitals always visible; advanced fields in an
  * expandable section.
+ *
+ * U1 restyle: repoint colors/spacing to new tokens. Layout logic unchanged.
  */
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, Typography, Spacing } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/use-theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 
 interface VitalField {
   key: string;
@@ -42,6 +45,7 @@ interface VitalsInputGridProps {
 }
 
 export default function VitalsInputGrid({ values, onChange }: VitalsInputGridProps) {
+  const { colors } = useTheme();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   function handleChange(key: string, text: string) {
@@ -61,18 +65,38 @@ export default function VitalsInputGrid({ values, onChange }: VitalsInputGridPro
 
     return (
       <View key={vital.key} style={styles.gridItem}>
-        <Text style={styles.label}>
+        <Text
+          style={[
+            TypographyScale.caption,
+            { color: colors.textPrimary, marginBottom: Spacing.xxs },
+          ]}
+        >
           {vital.label} {vital.unit ? `(${vital.unit})` : ''}
         </Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              color: colors.textPrimary,
+              backgroundColor: colors.surfaceSunken,
+              borderColor: colors.border,
+              borderRadius: Radius.md,
+              fontFamily: TypographyScale.body.fontFamily,
+              fontSize: TypographyScale.body.fontSize,
+            },
+          ]}
           value={display}
           onChangeText={(text) => handleChange(vital.key, text)}
           keyboardType="numeric"
           placeholder={vital.key}
-          placeholderTextColor={Colors.textSecondary + '80'}
+          placeholderTextColor={colors.textTertiary}
         />
-        <Text style={styles.helperText}>
+        <Text
+          style={[
+            TypographyScale.caption,
+            { color: colors.textSecondary, marginTop: 2, fontSize: 11 },
+          ]}
+        >
           Normal: {vital.range} {vital.unit}
         </Text>
       </View>
@@ -95,9 +119,14 @@ export default function VitalsInputGrid({ values, onChange }: VitalsInputGridPro
         <Ionicons
           name={showAdvanced ? 'chevron-up' : 'chevron-down'}
           size={18}
-          color={Colors.textPrimary}
+          color={colors.textPrimary}
         />
-        <Text style={styles.advancedLabel}>
+        <Text
+          style={[
+            TypographyScale.button,
+            { color: colors.textPrimary },
+          ]}
+        >
           Advanced Vitals ({ADVANCED_VITALS.length} fields)
         </Text>
       </TouchableOpacity>
@@ -121,30 +150,12 @@ const styles = StyleSheet.create({
     width: '47%',
     marginBottom: Spacing.xs,
   },
-  label: {
-    fontFamily: Typography.medium,
-    fontSize: 13,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xxs,
-  },
   input: {
-    fontFamily: Typography.regular,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     minHeight: 44,
     fontVariant: ['tabular-nums'],
-  },
-  helperText: {
-    fontFamily: Typography.regular,
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
   advancedToggle: {
     flexDirection: 'row',
@@ -155,10 +166,5 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     marginBottom: Spacing.xs,
     minHeight: 44,
-  },
-  advancedLabel: {
-    fontFamily: Typography.semiBold,
-    fontSize: 14,
-    color: Colors.textPrimary,
   },
 });
