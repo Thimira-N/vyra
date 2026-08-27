@@ -24,6 +24,7 @@ import {
 import { Link, router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius } from '@/constants/theme';
@@ -133,11 +134,20 @@ export default function StaffHomeScreen() {
         {/* ─── Top Clinical Status & Greeting Bar ─── */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.headerSection}>
           <View style={styles.topMetaRow}>
-            <View style={[styles.shiftPill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)', borderColor: isDark ? 'rgba(79, 209, 224, 0.25)' : 'rgba(15, 76, 92, 0.12)' }]}>
-              <View style={[styles.pulseDot, { backgroundColor: colors.success }]} />
-              <Text style={[styles.shiftText, { color: colors.primary }]}>
-                {getFormattedDate()} • CLINICAL TRIAGE
-              </Text>
+            <View style={styles.brandRow}>
+              <Image
+                source={require('../../../assets/images/icon.png')}
+                style={styles.brandLogo}
+                contentFit="contain"
+              />
+              <Text style={[styles.brandName, { color: colors.textPrimary }]}>Vyra</Text>
+
+              <View style={[styles.datePill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)', borderColor: isDark ? 'rgba(79, 209, 224, 0.22)' : 'rgba(15, 76, 92, 0.12)' }]}>
+                <View style={[styles.pulseDot, { backgroundColor: colors.success }]} />
+                <Text style={[styles.dateText, { color: colors.primary }]}>
+                  {getFormattedDate()}
+                </Text>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -438,21 +448,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.sm,
   },
-  shiftPill: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 8,
+  },
+  brandLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  brandName: {
+    fontFamily: TypographyScale.h3.fontFamily,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginRight: 4,
+  },
+  datePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
   pulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginRight: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
   },
-  shiftText: {
+  dateText: {
     fontFamily: TypographyScale.caption.fontFamily,
     fontSize: 10.5,
     fontWeight: '700',
