@@ -1,15 +1,15 @@
 /**
- * Step 1: Patient Info — Spec §6.2, UI Upgrade U4
+ * Step 1: Patient Info — Spec §6.2, UI Upgrade
  *
- * Premium Clinical Patient Selection:
- * - Clean progress steps at top
- * - Prominent selected patient identification card
- * - Search bar with instant feedback
- * - Expandable new patient registration card with pill sex selector
- * - Preserved logic: searchPatients, createPatient, assessmentDraftStore integration
+ * Ultra-Premium Clinical Patient Selection:
+ * - Segmented Dual Mode Switcher (Find Patient vs New Patient)
+ * - Auto-loads recent medical records for instant 1-tap selection
+ * - Verified Patient Hero Dossier Card with verified badge
+ * - Unified Search Capsule with instant clear & search trigger
+ * - Clean Clinical Form with styled Biological Sex pills
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,11 +17,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/use-theme';
-import { TypographyScale, Spacing, Radius } from '@/constants/theme';
+import { Spacing, Radius } from '@/constants/theme';
 import { Screen } from '@/components/ui/Screen';
 import { GlassCard } from '@/components/ui/GlassCard';
 import ProgressSteps from '@/components/ui/ProgressSteps';
@@ -36,9 +39,10 @@ const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 export default function PatientInfoScreen() {
   const { colors, isDark } = useTheme();
 
-  // Search state
+  // Search & Recent State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PatientOut[]>([]);
+  const [recentPatients, setRecentPatients] = useState<PatientOut[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
@@ -57,6 +61,25 @@ export default function PatientInfoScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
+  // Initial load of recent patients for instant 1-tap pick
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRecent() {
+      try {
+        const patients = await searchPatients('');
+        if (isMounted) {
+          setRecentPatients(patients.slice(0, 6));
+        }
+      } catch {
+        // Fallback silently if offline or initial fetch fails
+      }
+    }
+    loadRecent();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // --- Search ---
   async function handleSearch() {
     if (!searchQuery.trim()) return;
@@ -70,7 +93,7 @@ export default function PatientInfoScreen() {
       setSearchResults(results);
     } catch (error: any) {
       setSearchError(
-        error?.response?.data?.detail || 'Failed to search patients. Please try again.',
+        error?.response?.data?.detail || 'Failed to search medical records. Please try again.',
       );
     } finally {
       setIsSearching(false);
@@ -85,11 +108,11 @@ export default function PatientInfoScreen() {
   // --- Create new patient ---
   function validateNewPatient(): boolean {
     const errors: Record<string, string> = {};
-    if (!newName.trim()) errors.name = 'Name is required';
+    if (!newName.trim()) errors.name = 'Patient name is required';
     if (!newAge.trim()) {
       errors.age = 'Age is required';
     } else if (isNaN(parseInt(newAge)) || parseInt(newAge) < 0 || parseInt(newAge) > 150) {
-      errors.age = 'Enter a valid age';
+      errors.age = 'Enter a valid age (0–150)';
     }
     setNewErrors(errors);
     return Object.keys(errors).length === 0;
@@ -114,16 +137,16 @@ export default function PatientInfoScreen() {
       NotificationService.notify(
         'success',
         'Patient Created',
-        `Successfully created record for ${patient.full_name}`,
+        `Successfully registered record for ${patient.full_name}`,
       );
     } catch (error: any) {
       setCreateError(
-        error?.response?.data?.detail || 'Failed to create patient. Please try again.',
+        error?.response?.data?.detail || 'Failed to create patient record. Please try again.',
       );
       NotificationService.notify(
         'error',
-        'Failed to create',
-        'An error occurred while creating the patient record.',
+        'Creation Failed',
+        'Could not save patient record to database.',
       );
     } finally {
       setIsCreating(false);
@@ -134,6 +157,8 @@ export default function PatientInfoScreen() {
     if (!selectedPatient) return;
     router.push('/(staff)/new-assessment/symptoms');
   }
+
+  const displayedPatients = hasSearched ? searchResults : recentPatients;
 
   return (
     <Screen safeArea={true}>
@@ -146,187 +171,336 @@ export default function PatientInfoScreen() {
         <ProgressSteps steps={STEPS} currentStep={0} />
 
         <View style={styles.content}>
-          <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
-            Patient Information
-          </Text>
-          <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
-            Select an existing registered patient or create a new clinical profile.
-          </Text>
+          {/* Header Title */}
+          <View style={styles.headerTitleArea}>
+            <Text style={[styles.mainTitle, { color: colors.textPrimary }]}>
+              Patient Information
+            </Text>
+            <Text style={[styles.mainSubtitle, { color: colors.textSecondary }]}>
+              Select an existing clinical record or register a new patient profile.
+            </Text>
+          </View>
 
-          {/* Selected patient banner */}
-          {selectedPatient && (
-            <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.selectedBanner}>
-              <View style={styles.selectedBannerInner}>
-                <View style={[styles.avatarCircle, { backgroundColor: isDark ? colors.surfaceRaised : `${colors.primary}15` }]}>
-                  <Text style={[styles.avatarText, { color: colors.primary }]}>
-                    {selectedPatient.full_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.selectedInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={[styles.patientNameText, { color: colors.textPrimary }]}>
-                      {selectedPatient.full_name}
+          {/* Selected Patient Hero Dossier Card */}
+          {selectedPatient ? (
+            <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.selectedHeroCard}>
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ['rgba(79, 209, 224, 0.12)', 'rgba(15, 76, 92, 0.04)']
+                    : ['rgba(15, 76, 92, 0.06)', 'rgba(29, 122, 140, 0.02)']
+                }
+                style={styles.selectedGradientInner}
+              >
+                <View style={styles.selectedTopRow}>
+                  <View style={[styles.avatarCircleHero, { backgroundColor: isDark ? colors.surfaceRaised : `${colors.primary}18`, borderColor: colors.primary }]}>
+                    <Text style={[styles.avatarTextHero, { color: colors.primary }]}>
+                      {selectedPatient.full_name.charAt(0).toUpperCase()}
                     </Text>
-                    <View style={[styles.refBadge, { backgroundColor: colors.surfaceSunken }]}>
-                      <Text style={[styles.refText, { color: colors.textSecondary }]}>
-                        {selectedPatient.patient_ref}
+                  </View>
+
+                  <View style={styles.selectedDetails}>
+                    <View style={styles.nameBadgeRow}>
+                      <Text style={[styles.selectedFullName, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {selectedPatient.full_name}
                       </Text>
+                      <View style={[styles.refBadgePill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.15)' : 'rgba(15, 76, 92, 0.10)' }]}>
+                        <Text style={[styles.refBadgeText, { color: colors.primary }]}>
+                          {selectedPatient.patient_ref}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.metaPillsRow}>
+                      <View style={[styles.miniMetaPill, { backgroundColor: colors.surfaceSunken }]}>
+                        <Ionicons
+                          name={selectedPatient.sex === 'M' ? 'man-outline' : selectedPatient.sex === 'F' ? 'woman-outline' : 'person-outline'}
+                          size={12}
+                          color={colors.textSecondary}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.miniMetaText, { color: colors.textSecondary }]}>
+                          {selectedPatient.sex === 'M' ? 'Male' : selectedPatient.sex === 'F' ? 'Female' : 'Other'} · Age {selectedPatient.age}
+                        </Text>
+                      </View>
+                      {selectedPatient.phone ? (
+                        <View style={[styles.miniMetaPill, { backgroundColor: colors.surfaceSunken }]}>
+                          <Ionicons name="call-outline" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                          <Text style={[styles.miniMetaText, { color: colors.textSecondary }]}>
+                            {selectedPatient.phone}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   </View>
-                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                    {selectedPatient.sex === 'M' ? 'Male' : selectedPatient.sex === 'F' ? 'Female' : 'Other'} • Age {selectedPatient.age}
-                    {selectedPatient.phone ? ` • ${selectedPatient.phone}` : ''}
-                  </Text>
                 </View>
+
+                {/* Status bar */}
+                <View style={styles.verifiedRow}>
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={15} color={colors.success} style={{ marginRight: 5 }} />
+                    <Text style={[styles.verifiedText, { color: colors.success }]}>
+                      Record Linked & Verified
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setPatient(null)}
+                    activeOpacity={0.7}
+                    style={[styles.changeRecordBtn, { borderColor: colors.border }]}
+                  >
+                    <Ionicons name="swap-horizontal" size={13} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                    <Text style={[styles.changeRecordText, { color: colors.textSecondary }]}>
+                      Change
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </GlassCard>
+          ) : (
+            <>
+              {/* Segmented Dual Mode Switcher */}
+              <View style={[styles.segmentedSwitch, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E9EFF1' }]}>
                 <TouchableOpacity
-                  onPress={() => setPatient(null)}
-                  activeOpacity={0.7}
-                  style={[styles.changeBtn, { backgroundColor: `${colors.primary}12` }]}
+                  style={[
+                    styles.segmentTab,
+                    !showNewForm && [
+                      styles.segmentTabActive,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ],
+                  ]}
+                  onPress={() => setShowNewForm(false)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={[styles.changeBtnText, { color: colors.primary }]}>
-                    Change
+                  <Ionicons
+                    name="search"
+                    size={15}
+                    color={!showNewForm ? colors.primary : colors.textSecondary}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentTabText,
+                      {
+                        color: !showNewForm ? colors.textPrimary : colors.textSecondary,
+                        fontFamily: !showNewForm ? 'Inter_700Bold' : 'Inter_500Medium',
+                      },
+                    ]}
+                  >
+                    Find Existing Patient
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segmentTab,
+                    showNewForm && [
+                      styles.segmentTabActive,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ],
+                  ]}
+                  onPress={() => setShowNewForm(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="person-add"
+                    size={15}
+                    color={showNewForm ? colors.primary : colors.textSecondary}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentTabText,
+                      {
+                        color: showNewForm ? colors.textPrimary : colors.textSecondary,
+                        fontFamily: showNewForm ? 'Inter_700Bold' : 'Inter_500Medium',
+                      },
+                    ]}
+                  >
+                    + New Patient
                   </Text>
                 </TouchableOpacity>
               </View>
-            </GlassCard>
-          )}
 
-          {/* Search Section */}
-          {!selectedPatient && (
-            <>
-              <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.searchCard}>
-                <View style={styles.searchCardInner}>
-                  <View style={styles.searchRow}>
-                    <View style={styles.searchInput}>
-                      <TextField
-                        label="Search Patient Database"
-                        placeholder="Search by name or Ref ID..."
+              {/* SEARCH MODE */}
+              {!showNewForm ? (
+                <>
+                  <View style={styles.searchSection}>
+                    <View
+                      style={[
+                        styles.searchBar,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: searchQuery.trim() ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="search"
+                        size={20}
+                        color={searchQuery.trim() ? colors.primary : colors.textTertiary}
+                        style={styles.searchIcon}
+                      />
+                      <TextInput
+                        placeholder="Search name, phone, or Ref ID..."
+                        placeholderTextColor={colors.textTertiary}
                         value={searchQuery}
-                        onChangeText={setSearchQuery}
+                        onChangeText={(t) => {
+                          setSearchQuery(t);
+                          if (!t.trim()) {
+                            setHasSearched(false);
+                          }
+                        }}
                         onSubmitEditing={handleSearch}
                         returnKeyType="search"
-                        containerStyle={{ marginBottom: 0 }}
+                        style={[styles.searchInputField, { color: colors.textPrimary }]}
                       />
+                      {searchQuery.trim().length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSearchQuery('');
+                            setSearchResults([]);
+                            setHasSearched(false);
+                          }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={styles.clearSearchBtn}
+                        >
+                          <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        onPress={handleSearch}
+                        disabled={isSearching || !searchQuery.trim()}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.searchActionBtn,
+                          {
+                            backgroundColor: searchQuery.trim() ? colors.primary : `${colors.primary}35`,
+                          },
+                        ]}
+                      >
+                        {isSearching ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                        )}
+                      </TouchableOpacity>
                     </View>
-                    <Button
-                      title="Search"
-                      onPress={handleSearch}
-                      loading={isSearching}
-                      disabled={isSearching || !searchQuery.trim()}
-                      style={styles.searchButton}
-                    />
                   </View>
-                </View>
-              </GlassCard>
 
-              {/* Search Results */}
-              {searchError ? (
-                <GlassCard tint="default" elevation="raised" radius="md" style={styles.errorCard}>
-                  <View style={styles.errorInner}>
-                    <Ionicons name="alert-circle" size={24} color={colors.danger} />
-                    <Text style={[TypographyScale.body, { color: colors.danger, textAlign: 'center', marginTop: 4 }]}>
-                      {searchError}
-                    </Text>
-                    <Button title="Retry" onPress={handleSearch} variant="outline" style={{ marginTop: Spacing.sm }} />
-                  </View>
-                </GlassCard>
-              ) : isSearching ? (
-                <View style={styles.spinnerWrapper}>
-                  <ActivityIndicator color={colors.primary} size="large" />
-                  <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: Spacing.xs }]}>
-                    Searching medical records...
-                  </Text>
-                </View>
-              ) : hasSearched && searchResults.length === 0 ? (
-                <GlassCard tint="default" radius="md" style={styles.noResultsCard}>
-                  <View style={styles.noResultsInner}>
-                    <Ionicons name="person-outline" size={32} color={colors.textTertiary} />
-                    <Text style={[TypographyScale.body, styles.emptyText, { color: colors.textSecondary }]}>
-                      No matching patient records found.
-                    </Text>
-                    <Text style={[TypographyScale.caption, { color: colors.textTertiary, textAlign: 'center' }]}>
-                      Create a new patient record below to proceed.
-                    </Text>
-                  </View>
-                </GlassCard>
+                  {/* Search Results / Recent List */}
+                  {searchError ? (
+                    <GlassCard tint="default" elevation="raised" radius="md" style={styles.errorCard}>
+                      <View style={styles.errorInner}>
+                        <Ionicons name="alert-circle" size={24} color={colors.danger} />
+                        <Text style={[styles.errorText, { color: colors.danger }]}>
+                          {searchError}
+                        </Text>
+                        <Button title="Retry" onPress={handleSearch} variant="outline" style={{ marginTop: Spacing.sm }} />
+                      </View>
+                    </GlassCard>
+                  ) : isSearching ? (
+                    <View style={styles.spinnerWrapper}>
+                      <ActivityIndicator color={colors.primary} size="large" />
+                      <Text style={[styles.spinnerText, { color: colors.textSecondary }]}>
+                        Searching medical database...
+                      </Text>
+                    </View>
+                  ) : displayedPatients.length > 0 ? (
+                    <View style={styles.resultsContainer}>
+                      <View style={styles.resultsHeaderRow}>
+                        <Text style={[styles.resultsHeaderTitle, { color: colors.textSecondary }]}>
+                          {hasSearched ? `SEARCH RESULTS (${displayedPatients.length})` : 'RECENT MEDICAL RECORDS'}
+                        </Text>
+                        <Text style={[styles.quickSelectHint, { color: colors.textTertiary }]}>
+                          Tap to select
+                        </Text>
+                      </View>
+
+                      {displayedPatients.map((p) => (
+                        <GlassCard key={p._id} tint="elevated" elevation="raised" radius="md" style={styles.resultCard}>
+                          <TouchableOpacity
+                            style={styles.resultInner}
+                            onPress={() => selectPatient(p)}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.avatarCircleSmall, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.15)' : `${colors.primary}12` }]}>
+                              <Text style={[styles.avatarTextSmall, { color: colors.primary }]}>
+                                {p.full_name.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={styles.resultDetails}>
+                              <View style={styles.resultTitleRow}>
+                                <Text style={[styles.resultPatientName, { color: colors.textPrimary }]}>
+                                  {p.full_name}
+                                </Text>
+                                <View style={[styles.refBadge, { backgroundColor: colors.surfaceSunken }]}>
+                                  <Text style={[styles.refText, { color: colors.textSecondary }]}>
+                                    {p.patient_ref}
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={[styles.resultMeta, { color: colors.textSecondary }]}>
+                                {p.sex === 'M' ? 'Male' : p.sex === 'F' ? 'Female' : 'Other'} · Age {p.age}
+                                {p.phone ? ` · ${p.phone}` : ''}
+                              </Text>
+                            </View>
+                            <View style={[styles.selectArrowCircle, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)' }]}>
+                              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                            </View>
+                          </TouchableOpacity>
+                        </GlassCard>
+                      ))}
+                    </View>
+                  ) : hasSearched ? (
+                    <GlassCard tint="default" radius="md" style={styles.noResultsCard}>
+                      <View style={styles.noResultsInner}>
+                        <Ionicons name="person-outline" size={36} color={colors.textTertiary} />
+                        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                          No matching records found
+                        </Text>
+                        <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
+                          No patient matches "{searchQuery}". Register a new profile using the tab above.
+                        </Text>
+                      </View>
+                    </GlassCard>
+                  ) : null}
+                </>
               ) : (
-                searchResults.map((p) => (
-                  <GlassCard key={p._id} tint="elevated" elevation="raised" radius="md" style={styles.resultCard}>
-                    <TouchableOpacity
-                      style={styles.resultInner}
-                      onPress={() => selectPatient(p)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.avatarCircleSmall, { backgroundColor: `${colors.primary}15` }]}>
-                        <Text style={[styles.avatarTextSmall, { color: colors.primary }]}>
-                          {p.full_name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.resultDetails}>
-                        <View style={styles.resultTitleRow}>
-                          <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '700' }]}>
-                            {p.full_name}
-                          </Text>
-                          <View style={[styles.refBadge, { backgroundColor: colors.surfaceSunken }]}>
-                            <Text style={[styles.refText, { color: colors.textSecondary }]}>
-                              {p.patient_ref}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                          {p.sex === 'M' ? 'Male' : p.sex === 'F' ? 'Female' : 'Other'} · Age {p.age}
-                          {p.phone ? ` · ${p.phone}` : ''}
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                  </GlassCard>
-                ))
-              )}
-
-              {/* New patient toggle */}
-              <TouchableOpacity
-                style={[
-                  styles.newPatientToggle,
-                  {
-                    backgroundColor: showNewForm ? `${colors.primary}15` : isDark ? colors.surfaceSunken : '#F1F5F9',
-                    borderColor: showNewForm ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setShowNewForm(!showNewForm)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={showNewForm ? 'close-circle-outline' : 'person-add-outline'}
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={[styles.toggleBtnText, { color: colors.primary }]}>
-                  {showNewForm ? 'Hide New Patient Form' : 'Register New Patient'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* New patient form */}
-              {showNewForm && (
+                /* NEW PATIENT REGISTRATION MODE */
                 <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.formCard}>
                   <View style={styles.formCardInner}>
                     <View style={styles.formHeader}>
-                      <Ionicons name="person-add" size={18} color={colors.primary} />
-                      <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>
-                        New Patient Registration
-                      </Text>
+                      <View style={[styles.formIconBadge, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.15)' : 'rgba(15, 76, 92, 0.10)' }]}>
+                        <Ionicons name="person-add" size={18} color={colors.primary} />
+                      </View>
+                      <View>
+                        <Text style={[styles.formTitle, { color: colors.textPrimary }]}>
+                          New Patient Profile
+                        </Text>
+                        <Text style={[styles.formSubtitle, { color: colors.textSecondary }]}>
+                          A Medical Ref ID will be generated automatically
+                        </Text>
+                      </View>
                     </View>
 
                     {createError ? (
                       <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.danger}35` }]}>
-                        <Text style={[TypographyScale.caption, { color: colors.danger }]}>
+                        <Ionicons name="alert-circle" size={16} color={colors.danger} style={{ marginRight: 6 }} />
+                        <Text style={[styles.errorBannerText, { color: colors.danger }]}>
                           {createError}
                         </Text>
                       </View>
                     ) : null}
 
                     <TextField
-                      label="Full Name"
+                      label="Full Name *"
                       placeholder="e.g. Nimal Perera"
                       value={newName}
                       onChangeText={(t) => {
@@ -337,7 +511,7 @@ export default function PatientInfoScreen() {
                     />
 
                     <TextField
-                      label="Age"
+                      label="Age *"
                       placeholder="e.g. 45"
                       keyboardType="numeric"
                       value={newAge}
@@ -350,7 +524,7 @@ export default function PatientInfoScreen() {
 
                     {/* Sex Selector */}
                     <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                      Biological Sex
+                      Biological Sex *
                     </Text>
                     <View style={[styles.sexSelector, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
                       {(['M', 'F', 'Other'] as const).map((s) => {
@@ -373,11 +547,11 @@ export default function PatientInfoScreen() {
                                 styles.sexOptionText,
                                 {
                                   color: isSelected ? colors.textOnPrimary : colors.textSecondary,
-                                  fontWeight: isSelected ? '700' : '500',
+                                  fontFamily: isSelected ? 'Inter_700Bold' : 'Inter_500Medium',
                                 },
                               ]}
                             >
-                              {s === 'M' ? 'Male' : s === 'F' ? 'Female' : 'Other'}
+                              {s === 'M' ? '👨 Male' : s === 'F' ? '👩 Female' : '⚧ Other'}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -386,7 +560,7 @@ export default function PatientInfoScreen() {
 
                     <TextField
                       label="Phone Number (Optional)"
-                      placeholder="+94771234567"
+                      placeholder="+94 77 123 4567"
                       keyboardType="phone-pad"
                       value={newPhone}
                       onChangeText={setNewPhone}
@@ -397,7 +571,7 @@ export default function PatientInfoScreen() {
                       onPress={handleCreatePatient}
                       loading={isCreating}
                       disabled={isCreating}
-                      style={{ marginTop: Spacing.xs }}
+                      style={{ marginTop: Spacing.md }}
                     />
                   </View>
                 </GlassCard>
@@ -405,13 +579,15 @@ export default function PatientInfoScreen() {
             </>
           )}
 
-          {/* Next CTA */}
+          {/* Navigation CTA: Continue to Symptoms */}
           {selectedPatient && (
-            <Button
-              title="Next: Symptoms Description →"
-              onPress={handleNext}
-              style={styles.nextButton}
-            />
+            <View style={styles.ctaSection}>
+              <Button
+                title="Continue to Symptoms Assessment →"
+                onPress={handleNext}
+                style={styles.nextButton}
+              />
+            </View>
           )}
         </View>
       </ScrollView>
@@ -426,108 +602,219 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: 110,
+    paddingBottom: 120,
   },
   content: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
-  title: {
-    marginBottom: Spacing.xxs,
-  },
-  description: {
-    lineHeight: 20,
+  headerTitleArea: {
     marginBottom: Spacing.md,
   },
-
-  /* ── Selected Banner ── */
-  selectedBanner: {
-    marginBottom: Spacing.lg,
+  mainTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
   },
-  selectedBannerInner: {
+  mainSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+
+  /* ── Selected Hero Dossier Card ── */
+  selectedHeroCard: {
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+  },
+  selectedGradientInner: {
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+  },
+  selectedTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarCircleHero: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
   },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '800',
+  avatarTextHero: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 22,
   },
-  selectedInfo: {
+  selectedDetails: {
     flex: 1,
   },
-  nameRow: {
+  nameBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  selectedFullName: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 17,
+    letterSpacing: -0.2,
+  },
+  refBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  refBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.4,
+  },
+  metaPillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: 6,
+    flexWrap: 'wrap',
   },
-  patientNameText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  refBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  refText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  metaText: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  changeBtn: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
+  miniMetaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: Radius.pill,
   },
-  changeBtnText: {
+  miniMetaText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11.5,
+  },
+  verifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verifiedText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 12,
-    fontWeight: '700',
+  },
+  changeRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  changeRecordText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11.5,
+  },
+
+  /* ── Segmented Switcher ── */
+  segmentedSwitch: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.md,
+  },
+  segmentTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: Radius.md,
+  },
+  segmentTabActive: {
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  segmentTabText: {
+    fontSize: 13,
   },
 
   /* ── Search ── */
-  searchCard: {
+  searchSection: {
     marginBottom: Spacing.md,
   },
-  searchCardInner: {
-    padding: Spacing.md,
-  },
-  searchRow: {
+  searchBar: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.xs,
+    alignItems: 'center',
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
   },
-  searchInput: {
+  searchIcon: {
+    marginRight: Spacing.sm,
+  },
+  searchInputField: {
     flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    paddingVertical: Spacing.xs,
   },
-  searchButton: {
-    marginTop: 22,
-    minWidth: 80,
+  clearSearchBtn: {
+    padding: Spacing.xxs,
+    marginRight: Spacing.xs,
+  },
+  searchActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   spinnerWrapper: {
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.xl,
   },
-  noResultsCard: {
-    marginBottom: Spacing.md,
+  spinnerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    marginTop: Spacing.xs,
   },
-  noResultsInner: {
-    padding: Spacing.lg,
+
+  /* ── Results List ── */
+  resultsContainer: {
+    marginTop: Spacing.xs,
+  },
+  resultsHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+    paddingHorizontal: 2,
   },
-  emptyText: {
-    fontWeight: '600',
+  resultsHeaderTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.6,
+  },
+  quickSelectHint: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
   },
   resultCard: {
     marginBottom: Spacing.xs,
@@ -538,16 +825,16 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   avatarCircleSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.sm,
+    marginRight: Spacing.sm + 2,
   },
   avatarTextSmall: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 15,
-    fontWeight: '700',
   },
   resultDetails: {
     flex: 1,
@@ -557,26 +844,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-
-  /* ── New Patient Form ── */
-  newPatientToggle: {
-    flexDirection: 'row',
+  resultPatientName: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14.5,
+  },
+  refBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  refText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 10,
+  },
+  resultMeta: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  selectArrowCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    marginLeft: Spacing.xs,
+  },
+
+  /* ── Empty State ── */
+  noResultsCard: {
+    marginTop: Spacing.sm,
+  },
+  noResultsInner: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    marginTop: Spacing.sm,
+  },
+  emptySubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12.5,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    lineHeight: 18,
+  },
+  errorCard: {
     marginBottom: Spacing.md,
-    minHeight: 46,
   },
-  toggleBtnText: {
-    fontFamily: TypographyScale.button.fontFamily,
-    fontSize: 14,
-    fontWeight: '700',
+  errorInner: {
+    padding: Spacing.md,
+    alignItems: 'center',
   },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  /* ── Form Card ── */
   formCard: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   formCardInner: {
     padding: Spacing.md,
@@ -584,13 +915,41 @@ const styles = StyleSheet.create({
   formHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
+  formIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+  },
+  formSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11.5,
+    marginTop: 1,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  errorBannerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    flex: 1,
+  },
   fieldLabel: {
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontSize: TypographyScale.caption.fontSize,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
     marginBottom: Spacing.xs,
   },
   sexSelector: {
@@ -602,29 +961,19 @@ const styles = StyleSheet.create({
   },
   sexOption: {
     flex: 1,
-    paddingVertical: Spacing.xs + 2,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 38,
+    paddingVertical: 9,
   },
   sexOptionText: {
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontSize: 12,
+    fontSize: 13,
   },
-  errorBanner: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  errorCard: {
-    marginBottom: Spacing.md,
-  },
-  errorInner: {
-    padding: Spacing.md,
-    alignItems: 'center',
+
+  /* ── CTA Section ── */
+  ctaSection: {
+    marginTop: Spacing.md,
   },
   nextButton: {
-    marginTop: Spacing.md,
+    minHeight: 52,
   },
 });
