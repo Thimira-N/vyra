@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 220,
     height: 220,
-    opacity: 0.30,
   },
   logoGlow: {
     width: '100%',
     height: '100%',
+    opacity: 0.30,
   },
   iconWrapper: {
     width: 68,

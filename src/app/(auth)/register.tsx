@@ -415,11 +415,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 180,
     height: 180,
-    opacity: 0.25,
   },
   logoGlow: {
     width: '100%',
     height: '100%',
+    opacity: 0.25,
   },
   iconWrapper: {
     width: 56,
