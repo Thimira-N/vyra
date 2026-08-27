@@ -1,17 +1,17 @@
 /**
  * Step 3: Vitals — Spec §6.2, UI Upgrade U4
  *
- * "Clinical Glass" restyle:
- * - Screen wrapper with gradient mesh + blob accents
+ * Premium Clinical Vitals Entry:
  * - ProgressSteps indicator
- * - VitalsInputGrid wrapped in elevated GlassCard
- * - Safe area & bottom clearance
+ * - 2-column clinical numeric input grid with normal range indicators
+ * - Core and advanced biometric parameter support
  * - Preserved logic: core vitals validation, draftStore persistence
  */
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 import { Screen } from '@/components/ui/Screen';
@@ -36,7 +36,7 @@ export default function VitalsScreen() {
     const hasAnyCoreVital = coreKeys.some((k) => vitals[k] !== undefined);
 
     if (!hasAnyCoreVital) {
-      setError('Please enter at least one vital sign measurement.');
+      setError('Please enter at least one vital sign measurement to proceed.');
       return;
     }
 
@@ -59,18 +59,19 @@ export default function VitalsScreen() {
             Vital Signs
           </Text>
           <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
-            Enter the patient's current vital signs measurements.
+            Input the patient's current hemodynamic and physiological indicators.
           </Text>
 
           {error ? (
             <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.danger}35` }]}>
-              <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
+              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+              <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600', flex: 1 }]}>
                 {error}
               </Text>
             </View>
           ) : null}
 
-          <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.vitalsCard}>
+          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.vitalsCard}>
             <View style={styles.cardInner}>
               <VitalsInputGrid
                 values={vitals}
@@ -82,7 +83,11 @@ export default function VitalsScreen() {
             </View>
           </GlassCard>
 
-          <Button title="Next: Review →" onPress={handleNext} style={styles.nextButton} />
+          <Button
+            title="Next: Review & Submit →"
+            onPress={handleNext}
+            style={styles.nextButton}
+          />
         </View>
       </ScrollView>
     </Screen>
@@ -95,18 +100,18 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: 96,
   },
   content: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   title: {
     marginBottom: Spacing.xxs,
   },
   description: {
-    lineHeight: 21,
-    marginBottom: Spacing.lg,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
   vitalsCard: {
     marginBottom: Spacing.lg,
@@ -115,6 +120,9 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.sm,

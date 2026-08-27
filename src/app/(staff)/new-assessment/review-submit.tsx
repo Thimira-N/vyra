@@ -1,17 +1,18 @@
 /**
  * Step 4: Review & Submit — Spec §6.2, UI Upgrade U4
  *
- * "Clinical Glass" restyle:
- * - Screen wrapper with gradient mesh + blob accents
- * - ProgressSteps indicator
- * - Summary sections in elevated GlassCards with jump-back edit links
- * - Safe area & bottom clearance
+ * Premium Clinical Pre-Submission Review:
+ * - ProgressSteps indicator at top
+ * - Comprehensive summary cards for all modalities with one-tap edit links
+ * - Visual vital sign tags and image preview
+ * - High-contrast "Submit for AI Analysis" action button
  * - Preserved logic: draftStore retrieval, submit navigation to analyzing
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
-import { router, Link } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 import { Screen } from '@/components/ui/Screen';
@@ -22,25 +23,23 @@ import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
-function formatVitals(vitals: Record<string, number>): string {
-  const labels: Record<string, string> = {
-    HR: 'Heart Rate',
-    O2Sat: 'SpO₂',
-    Temp: 'Temperature',
-    SBP: 'Systolic BP',
-    DBP: 'Diastolic BP',
-    Resp: 'Resp Rate',
-    MAP: 'MAP',
-    Age: 'Age',
-  };
-
-  return Object.entries(vitals)
-    .map(([key, val]) => `${labels[key] || key}: ${val}`)
-    .join('\n');
-}
+const VITAL_LABELS: Record<string, { label: string; unit: string }> = {
+  HR: { label: 'Heart Rate', unit: 'bpm' },
+  O2Sat: { label: 'SpO₂', unit: '%' },
+  Temp: { label: 'Temp', unit: '°C' },
+  SBP: { label: 'Systolic BP', unit: 'mmHg' },
+  DBP: { label: 'Diastolic BP', unit: 'mmHg' },
+  Resp: { label: 'Resp Rate', unit: '/min' },
+  MAP: { label: 'MAP', unit: 'mmHg' },
+  Age: { label: 'Age', unit: 'yrs' },
+  EtCO2: { label: 'EtCO₂', unit: 'mmHg' },
+  FiO2: { label: 'FiO₂', unit: '%' },
+  pH: { label: 'pH', unit: '' },
+  Lactate: { label: 'Lactate', unit: 'mmol/L' },
+};
 
 export default function ReviewSubmitScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const patient = useAssessmentDraftStore((s) => s.patient);
   const symptoms_text = useAssessmentDraftStore((s) => s.symptoms_text);
   const imageUri = useAssessmentDraftStore((s) => s.imageUri);
@@ -64,68 +63,132 @@ export default function ReviewSubmitScreen() {
             Review & Submit
           </Text>
           <Text style={[TypographyScale.body, styles.description, { color: colors.textSecondary }]}>
-            Confirm all information before submitting for analysis.
+            Confirm all clinical details before running the multimodal stratification pipeline.
           </Text>
 
-          {/* Patient summary */}
-          <SummarySection title="Patient Info" editRoute="/(staff)/new-assessment/patient-info">
+          {/* Patient Info Card */}
+          <SummaryCard
+            title="Patient Profile"
+            icon="person"
+            onEdit={() => router.push('/(staff)/new-assessment/patient-info')}
+          >
             {patient ? (
-              <>
-                <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '600' }]}>
-                  {patient.full_name}
-                </Text>
-                <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                  {patient.patient_ref} · {patient.sex} · Age {patient.age}
-                  {patient.phone ? ` · ${patient.phone}` : ''}
-                </Text>
-              </>
+              <View style={styles.patientProfileRow}>
+                <View style={[styles.avatarCircle, { backgroundColor: `${colors.primary}15` }]}>
+                  <Text style={[styles.avatarText, { color: colors.primary }]}>
+                    {patient.full_name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.patientInfo}>
+                  <View style={styles.nameRow}>
+                    <Text style={[styles.patientName, { color: colors.textPrimary }]}>
+                      {patient.full_name}
+                    </Text>
+                    <View style={[styles.refBadge, { backgroundColor: colors.surfaceSunken }]}>
+                      <Text style={[styles.refText, { color: colors.textSecondary }]}>
+                        {patient.patient_ref}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                    {patient.sex === 'M' ? 'Male' : patient.sex === 'F' ? 'Female' : 'Other'} • Age {patient.age}
+                    {patient.phone ? ` • ${patient.phone}` : ''}
+                  </Text>
+                </View>
+              </View>
             ) : (
-              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
+              <Text style={[styles.missingText, { color: colors.riskMedium }]}>
                 No patient selected
               </Text>
             )}
-          </SummarySection>
+          </SummaryCard>
 
-          {/* Symptoms summary */}
-          <SummarySection title="Symptoms" editRoute="/(staff)/new-assessment/symptoms">
+          {/* Symptoms Summary */}
+          <SummaryCard
+            title="Symptom Description"
+            icon="document-text"
+            onEdit={() => router.push('/(staff)/new-assessment/symptoms')}
+          >
             {symptoms_text ? (
-              <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 21 }]} numberOfLines={5}>
+              <Text style={[styles.symptomsText, { color: colors.textPrimary }]} numberOfLines={5}>
                 {symptoms_text}
               </Text>
             ) : (
-              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
-                No symptoms entered
+              <Text style={[styles.missingText, { color: colors.riskMedium }]}>
+                No symptoms recorded
               </Text>
             )}
-          </SummarySection>
+          </SummaryCard>
 
-          {/* Image summary */}
-          <SummarySection title="Clinical Image" editRoute="/(staff)/new-assessment/image-capture">
+          {/* Image Summary */}
+          <SummaryCard
+            title="Clinical Image"
+            icon="image"
+            onEdit={() => router.push('/(staff)/new-assessment/image-capture')}
+          >
             {imageUri ? (
-              <Image source={{ uri: imageUri }} style={[styles.imageThumbnail, { backgroundColor: colors.surfaceSunken }]} resizeMode="cover" />
+              <View style={styles.imageThumbnailWrapper}>
+                <Image
+                  source={{ uri: imageUri }}
+                  style={[styles.imageThumbnail, { backgroundColor: colors.surfaceSunken }]}
+                  resizeMode="cover"
+                />
+                <View style={styles.imageBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                  <Text style={styles.imageBadgeText}>Image Attached</Text>
+                </View>
+              </View>
             ) : (
-              <Text style={[TypographyScale.bodySm, { color: colors.textSecondary, fontStyle: 'italic' }]}>
-                No image (optional — will use partial-modality analysis)
-              </Text>
+              <View style={[styles.emptyImageBanner, { backgroundColor: colors.surfaceSunken }]}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                <Text style={[styles.emptyImageText, { color: colors.textSecondary }]}>
+                  No image provided • Partial modality analysis active
+                </Text>
+              </View>
             )}
-          </SummarySection>
+          </SummaryCard>
 
-          {/* Vitals summary */}
-          <SummarySection title="Vital Signs" editRoute="/(staff)/new-assessment/vitals">
+          {/* Vitals Summary */}
+          <SummaryCard
+            title="Vital Signs"
+            icon="pulse"
+            onEdit={() => router.push('/(staff)/new-assessment/vitals')}
+          >
             {Object.keys(vitals).length > 0 ? (
-              <Text style={[TypographyScale.body, { color: colors.textPrimary, lineHeight: 22, fontVariant: ['tabular-nums'] }]}>
-                {formatVitals(vitals)}
-              </Text>
+              <View style={styles.vitalsWrap}>
+                {Object.entries(vitals).map(([key, val]) => {
+                  const conf = VITAL_LABELS[key] || { label: key, unit: '' };
+                  return (
+                    <View
+                      key={key}
+                      style={[
+                        styles.vitalChip,
+                        {
+                          backgroundColor: isDark ? colors.surfaceSunken : '#F1F5F9',
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.vitalChipLabel, { color: colors.textSecondary }]}>
+                        {conf.label}:
+                      </Text>
+                      <Text style={[styles.vitalChipVal, { color: colors.textPrimary }]}>
+                        {val} {conf.unit}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
             ) : (
-              <Text style={[TypographyScale.body, styles.missingText, { color: colors.riskMedium }]}>
-                No vitals entered
+              <Text style={[styles.missingText, { color: colors.riskMedium }]}>
+                No vitals recorded
               </Text>
             )}
-          </SummarySection>
+          </SummaryCard>
 
-          {/* Submit */}
+          {/* Submit Action Button */}
           <Button
-            title="Submit for Analysis"
+            title="Submit for AI Risk Analysis ⚡"
             onPress={handleSubmit}
             disabled={!patient || !symptoms_text}
             style={styles.submitButton}
@@ -136,25 +199,31 @@ export default function ReviewSubmitScreen() {
   );
 }
 
-function SummarySection({
+function SummaryCard({
   title,
-  editRoute,
+  icon,
+  onEdit,
   children,
 }: {
   title: string;
-  editRoute: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onEdit: () => void;
   children: React.ReactNode;
 }) {
   const { colors } = useTheme();
 
   return (
-    <GlassCard tint="elevated" elevation="raised" radius="md" style={styles.summaryCard}>
+    <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.summaryCard}>
       <View style={styles.summaryInner}>
         <View style={styles.summaryHeader}>
-          <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>{title}</Text>
-          <Link href={editRoute as any} style={[styles.editLink, { color: colors.primaryLight }]}>
-            Edit
-          </Link>
+          <View style={styles.headerLeft}>
+            <Ionicons name={icon} size={16} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{title}</Text>
+          </View>
+          <TouchableOpacity onPress={onEdit} activeOpacity={0.7} style={styles.editBtn}>
+            <Text style={[styles.editLink, { color: colors.primary }]}>Edit</Text>
+            <Ionicons name="pencil" size={12} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         {children}
       </View>
@@ -168,18 +237,21 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: 96,
   },
   content: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   title: {
     marginBottom: Spacing.xxs,
   },
   description: {
-    marginBottom: Spacing.lg,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
+
+  /* ── Summary Card ── */
   summaryCard: {
     marginBottom: Spacing.sm,
   },
@@ -192,20 +264,149 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  editLink: {
-    fontFamily: TypographyScale.button.fontFamily,
-    fontSize: 14,
-    fontWeight: '600',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  missingText: {
-    fontStyle: 'italic',
+  cardTitle: {
+    fontFamily: TypographyScale.h3.fontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+  },
+  editLink: {
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* ── Patient Profile ── */
+  patientProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  avatarText: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  patientInfo: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  patientName: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  refBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  refText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  metaText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  /* ── Symptoms ── */
+  symptomsText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  /* ── Image ── */
+  imageThumbnailWrapper: {
+    position: 'relative',
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
   imageThumbnail: {
     width: '100%',
-    height: 160,
+    height: 150,
     borderRadius: Radius.md,
   },
+  imageBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 76, 92, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    gap: 4,
+  },
+  imageBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  emptyImageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    gap: 6,
+  },
+  emptyImageText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+
+  /* ── Vitals ── */
+  vitalsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  vitalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    gap: 4,
+  },
+  vitalChipLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  vitalChipVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+
+  missingText: {
+    fontStyle: 'italic',
+    fontSize: 13,
+  },
   submitButton: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
 });

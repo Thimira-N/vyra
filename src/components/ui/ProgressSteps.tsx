@@ -1,21 +1,16 @@
 /**
  * ProgressSteps — Step indicator for the new-assessment wizard flow.
- * Shows completed, current, and upcoming steps.
+ * Shows completed, current, and upcoming steps with clinical aesthetic.
  *
- * U1 restyle per Spec §7:
- *   - Active step: filled primary circle + connecting line in primary
- *   - Completed: primary outline + checkmark
- *   - Upcoming: border-colored outline
- *   - No glass — small UI, glass adds noise not depth
- *
- * Used in the staff new-assessment flow (Spec §6.2):
- *   1. Patient Info → 2. Symptoms → 3. Image → 4. Vitals → 5. Review
+ * Steps:
+ *   1. Patient → 2. Symptoms → 3. Image → 4. Vitals → 5. Review
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
-import { TypographyScale, Spacing } from '@/constants/theme';
+import { TypographyScale, Spacing, Radius } from '@/constants/theme';
 
 interface ProgressStepsProps {
   /** Labels for each step */
@@ -25,7 +20,7 @@ interface ProgressStepsProps {
 }
 
 export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <View style={styles.container}>
@@ -43,7 +38,11 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
                   styles.connector,
                   {
                     backgroundColor:
-                      isCompleted || isCurrent ? colors.primary : colors.border,
+                      isCompleted || isCurrent
+                        ? colors.primary
+                        : isDark
+                          ? colors.border
+                          : '#E2E8F0',
                   },
                 ]}
               />
@@ -54,35 +53,39 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
               style={[
                 styles.circle,
                 isCompleted && {
-                  backgroundColor: 'transparent',
+                  backgroundColor: `${colors.primary}18`,
                   borderWidth: 2,
                   borderColor: colors.primary,
                 },
                 isCurrent && {
                   backgroundColor: colors.primary,
+                  borderWidth: 2,
+                  borderColor: isDark ? '#4FD1E0' : colors.primaryLight,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 8,
+                  elevation: 4,
                 },
                 isUpcoming && {
-                  backgroundColor: 'transparent',
+                  backgroundColor: isDark ? colors.surfaceSunken : '#F1F5F9',
                   borderWidth: 1.5,
                   borderColor: colors.border,
                 },
               ]}
             >
               {isCompleted ? (
-                <Text
-                  style={[
-                    styles.checkmark,
-                    { color: colors.primary },
-                  ]}
-                >
-                  ✓
-                </Text>
+                <Ionicons name="checkmark" size={14} color={colors.primary} />
               ) : (
                 <Text
                   style={[
                     styles.stepNumber,
-                    isCurrent && { color: colors.textOnPrimary },
-                    isUpcoming && { color: colors.textSecondary },
+                    {
+                      color: isCurrent
+                        ? (isDark ? '#0B1418' : '#FFFFFF')
+                        : colors.textSecondary,
+                      fontWeight: isCurrent ? '800' : '600',
+                    },
                   ]}
                 >
                   {index + 1}
@@ -93,14 +96,15 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
             {/* Step label */}
             <Text
               style={[
-                TypographyScale.caption,
                 styles.label,
-                { color: colors.textPrimary },
-                isCurrent && {
-                  fontFamily: TypographyScale.button.fontFamily,
-                  color: colors.primary,
+                {
+                  color: isCurrent
+                    ? colors.primary
+                    : isCompleted
+                      ? colors.textPrimary
+                      : colors.textTertiary,
+                  fontWeight: isCurrent ? '700' : '500',
                 },
-                isUpcoming && { color: colors.textSecondary },
               ]}
               numberOfLines={1}
             >
@@ -113,57 +117,46 @@ export default function ProgressSteps({ steps, currentStep }: ProgressStepsProps
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-const CIRCLE_SIZE = 28;
+const CIRCLE_SIZE = 30;
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xxs,
+    paddingHorizontal: Spacing.xs,
     paddingVertical: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
   stepWrapper: {
     flex: 1,
     alignItems: 'center',
+    position: 'relative',
   },
-
-  // Connector line
   connector: {
     position: 'absolute',
     top: CIRCLE_SIZE / 2,
     right: '50%',
     width: '100%',
-    height: 2,
+    height: 2.5,
     zIndex: -1,
   },
-
-  // Step circle
   circle: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.xxs,
-  },
-
-  // Number / checkmark inside circle
-  checkmark: {
-    fontFamily: TypographyScale.button.fontFamily,
-    fontSize: 14,
+    marginBottom: 4,
   },
   stepNumber: {
     fontFamily: TypographyScale.caption.fontFamily,
     fontSize: 12,
   },
-
-  // Label below circle
   label: {
+    fontFamily: TypographyScale.caption.fontFamily,
     textAlign: 'center',
     fontSize: 11,
+    letterSpacing: 0.2,
   },
 });
