@@ -135,6 +135,7 @@ export default function StaffLayout() {
     <Tabs
       safeAreaInsets={{ bottom: 0, top: 0, left: 0, right: 0 }}
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
@@ -168,15 +169,6 @@ export default function StaffLayout() {
             : {}),
         },
         tabBarBackground: () => <GlassTabBarBackground />,
-        headerTransparent: true,
-        headerBackground: () => <GlassHeader style={StyleSheet.absoluteFill} />,
-        headerTintColor: colors.textPrimary,
-        headerTitleStyle: {
-          fontFamily: TypographyScale.h3.fontFamily,
-          fontSize: TypographyScale.h3.fontSize,
-          color: colors.textPrimary,
-        },
-        headerRight: () => <NotificationBell />,
       }}
     >
       <Tabs.Screen

@@ -21,7 +21,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import { StatusBar as RNStatusBar, Platform, StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
 import { GlassHeader } from '@/components/ui/GlassHeader';
@@ -47,6 +47,13 @@ const queryClient = new QueryClient({
  */
 function RootLayoutInner() {
   const { colors, isDark } = useTheme();
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      RNStatusBar.setTranslucent(true);
+      RNStatusBar.setBackgroundColor('transparent');
+    }
+  }, []);
 
   // React Navigation theme wired to our token system
   const navTheme = isDark
@@ -123,6 +130,8 @@ function RootLayoutInner() {
   );
 }
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 const ioniconsFont = require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf');
 
 export default function RootLayout() {
@@ -153,10 +162,12 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <RootLayoutInner />
-      </ThemeProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <RootLayoutInner />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

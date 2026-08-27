@@ -85,7 +85,7 @@ export default function SettingsView({ role }: SettingsViewProps) {
   }
 
   return (
-    <Screen safeArea={false}>
+    <Screen safeArea={true}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -520,8 +520,8 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 96 : 84, // Header clearance
-    paddingBottom: 96, // Floating TabBar clearance
+    paddingTop: 56, // Header clearance
+    paddingBottom: 110, // Floating TabBar clearance
   },
   pageTitle: {
     marginBottom: Spacing.lg,

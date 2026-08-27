@@ -125,8 +125,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.xs,
-    marginBottom: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
   },
   stepWrapper: {
     flex: 1,

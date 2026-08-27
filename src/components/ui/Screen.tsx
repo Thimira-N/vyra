@@ -13,6 +13,7 @@ import {
   View,
   StyleSheet,
   Platform,
+  StatusBar as RNStatusBar,
   type ViewStyle,
   type StyleProp,
 } from 'react-native';
@@ -38,6 +39,8 @@ export function Screen({
 }: ScreenProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const statusBarHeight = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 28) : 0;
+  const topSafePadding = Math.max(insets.top, statusBarHeight);
 
   return (
     <View style={styles.root}>
@@ -105,7 +108,7 @@ export function Screen({
         style={[
           styles.content,
           safeArea && {
-            paddingTop: insets.top,
+            paddingTop: topSafePadding,
             paddingBottom: insets.bottom,
             paddingLeft: insets.left,
             paddingRight: insets.right,

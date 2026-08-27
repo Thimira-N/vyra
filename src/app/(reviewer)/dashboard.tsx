@@ -203,7 +203,7 @@ export default function ReviewerDashboardScreen() {
   }
 
   return (
-    <Screen safeArea={false}>
+    <Screen safeArea={true}>
       <View style={styles.container}>
         {/* ─── Header & Live Queue Title ─── */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.headerArea}>
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 104 : 92, // Header clearance
+    paddingTop: Spacing.lg,
   },
 
   /* ── Header Area ── */

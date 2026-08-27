@@ -20,6 +20,10 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.thimira_n.vyra"
     },
+    "androidStatusBar": {
+      "translucent": true,
+      "backgroundColor": "#00000000"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"

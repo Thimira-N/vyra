@@ -43,7 +43,7 @@ export default function ProfileView() {
   if (!user) return null;
 
   return (
-    <Screen safeArea={false}>
+    <Screen safeArea={true}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 96 : 84, // Header clearance
-    paddingBottom: 96, // Floating TabBar clearance
+    paddingTop: Spacing.lg,
+    paddingBottom: 110, // Floating TabBar clearance
   },
   avatarContainer: {
     alignItems: 'center',

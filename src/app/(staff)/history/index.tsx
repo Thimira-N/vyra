@@ -22,6 +22,7 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius, type RiskLevel } from '@/constants/theme';
 import { Screen } from '@/components/ui/Screen';
+import { Ionicons } from '@expo/vector-icons';
 import { GlassCard } from '@/components/ui/GlassCard';
 import TextField from '@/components/ui/TextField';
 import Button from '@/components/ui/Button';
@@ -30,7 +31,7 @@ import { getMyAssessments, type AssessmentOut } from '@/services/assessmentsApi'
 import { getPatientById, type PatientOut } from '@/services/patientsApi';
 
 export default function HistoryListScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [assessments, setAssessments] = useState<AssessmentOut[]>([]);
   const [patients, setPatients] = useState<Record<string, PatientOut>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -185,15 +186,30 @@ export default function HistoryListScreen() {
   return (
     <Screen safeArea={true}>
       <View style={styles.container}>
-        <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
-          Assessment History
-        </Text>
+        {/* ─── Header Section ─── */}
+        <View style={styles.headerSection}>
+          <View style={styles.topMetaRow}>
+            <View style={[styles.archivePill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)' }]}>
+              <Ionicons name="time-outline" size={12} color={colors.primary} style={{ marginRight: 5 }} />
+              <Text style={[styles.archivePillText, { color: colors.primary }]}>
+                TRIAGE ARCHIVE
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[TypographyScale.display, styles.title, { color: colors.textPrimary }]}>
+            Assessment History
+          </Text>
+          <Text style={[TypographyScale.bodySm, styles.subtitle, { color: colors.textSecondary }]}>
+            Review past multimodal patient stratifications and clinical reports.
+          </Text>
+        </View>
 
         {/* Filters */}
         {assessments.length > 0 && (
           <View style={styles.filters}>
             <TextField
-              placeholder="Search patient name..."
+              placeholder="Search by patient name or Ref ID..."
               value={searchQuery}
               onChangeText={setSearchQuery}
               containerStyle={styles.searchInput}
@@ -217,7 +233,7 @@ export default function HistoryListScreen() {
                       TypographyScale.caption,
                       {
                         color: riskFilter === r ? colors.textOnPrimary : colors.textSecondary,
-                        fontWeight: '600',
+                        fontWeight: '700',
                       },
                     ]}
                   >
@@ -256,16 +272,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
+  },
+  headerSection: {
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  topMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  archivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+  },
+  archivePillText: {
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  title: {
+    fontSize: 26,
+    lineHeight: 32,
+    marginBottom: 3,
+  },
+  subtitle: {
+    lineHeight: 18,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
-  },
-  title: {
-    marginBottom: Spacing.md,
   },
   filters: {
     marginBottom: Spacing.sm,

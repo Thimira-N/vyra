@@ -69,7 +69,7 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <Screen safeArea={false}>
+    <Screen safeArea={true}>
       <Stack.Screen
         options={{
           title: 'Notifications',
@@ -78,7 +78,7 @@ export default function NotificationsScreen() {
             notifications.length > 0 ? (
               <TouchableOpacity onPress={clearAll} style={styles.clearButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={[TypographyScale.button, { color: colors.primaryLight, fontSize: 14 }]}>
-                  Clear All
+                  Clear all
                 </Text>
               </TouchableOpacity>
             ) : null,
@@ -111,7 +111,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 96 : 84, // Header clearance
+    paddingTop: 56, // Header clearance
     paddingBottom: 96, // Floating TabBar clearance
   },
   notificationCard: {

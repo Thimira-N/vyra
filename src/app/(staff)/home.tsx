@@ -32,6 +32,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import RiskBadge from '@/components/ui/RiskBadge';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificationStore } from '@/store/notificationStore';
 import { getMyAssessments, type AssessmentOut } from '@/services/assessmentsApi';
 import { getPatientById, type PatientOut } from '@/services/patientsApi';
 
@@ -115,7 +116,7 @@ export default function StaffHomeScreen() {
   const recentItems = assessments.slice(0, 4);
 
   return (
-    <Screen safeArea={false}>
+    <Screen safeArea={true}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -132,29 +133,50 @@ export default function StaffHomeScreen() {
         {/* ─── Top Clinical Status & Greeting Bar ─── */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.headerSection}>
           <View style={styles.topMetaRow}>
-            <View style={[styles.shiftPill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)' }]}>
+            <View style={[styles.shiftPill, { backgroundColor: isDark ? 'rgba(79, 209, 224, 0.12)' : 'rgba(15, 76, 92, 0.08)', borderColor: isDark ? 'rgba(79, 209, 224, 0.25)' : 'rgba(15, 76, 92, 0.12)' }]}>
               <View style={[styles.pulseDot, { backgroundColor: colors.success }]} />
               <Text style={[styles.shiftText, { color: colors.primary }]}>
                 {getFormattedDate()} • CLINICAL TRIAGE
               </Text>
             </View>
 
+            <TouchableOpacity
+              style={[
+                styles.bellBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.9)',
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => router.push('/(staff)/notifications')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+              {useNotificationStore.getState().notifications.length > 0 && (
+                <View style={[styles.bellBadge, { backgroundColor: colors.riskHigh }]} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.greetingContainer}>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>
+              {getTimeOfDayGreeting()},
+            </Text>
+            <Text style={[styles.greetingName, { color: colors.textPrimary }]}>
+              {user?.full_name ? user.full_name : 'Doctor'}
+            </Text>
+
             {user?.facility_name ? (
-              <View style={[styles.facilityPill, { backgroundColor: colors.surfaceSunken }]}>
-                <Ionicons name="business-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.facilityText, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {user.facility_name}
-                </Text>
+              <View style={styles.facilityRow}>
+                <View style={[styles.facilityPill, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.surfaceSunken, borderColor: colors.border }]}>
+                  <Ionicons name="business" size={13} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={[styles.facilityText, { color: colors.textPrimary }]}>
+                    {user.facility_name}
+                  </Text>
+                </View>
               </View>
             ) : null}
           </View>
-
-          <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>
-            {getTimeOfDayGreeting()},
-          </Text>
-          <Text style={[styles.greetingName, { color: colors.textPrimary }]}>
-            {user?.full_name ? user.full_name : 'Doctor'}
-          </Text>
         </Animated.View>
 
         {/* ─── Hero Primary Action: New Risk Assessment ─── */}
@@ -402,7 +424,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 104 : 92, // Header clearance
+    paddingTop: Spacing.lg,
     paddingBottom: 110, // Floating TabBar clearance
   },
 
@@ -414,44 +436,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   shiftPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
+    borderWidth: 1,
   },
   pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     marginRight: 6,
   },
   shiftText: {
     fontFamily: TypographyScale.caption.fontFamily,
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  facilityPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  bellBtn: {
+    width: 44,
+    height: 44,
     borderRadius: Radius.pill,
-    maxWidth: '50%',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  facilityText: {
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontSize: 11,
-    fontWeight: '500',
+  bellBadge: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  greetingContainer: {
+    marginTop: 2,
   },
   greetingSub: {
     fontFamily: TypographyScale.body.fontFamily,
     fontSize: 15,
-    marginTop: 2,
   },
   greetingName: {
     fontFamily: TypographyScale.display.fontFamily,
@@ -459,6 +495,25 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     fontWeight: '800',
     letterSpacing: -0.3,
+  },
+  facilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  facilityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  facilityText: {
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   /* ── Hero Action Card ── */
