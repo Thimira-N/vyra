@@ -1,10 +1,11 @@
 /**
  * Register — Spec §6.1, UI Upgrade U3
  *
- * "Clinical Glass" restyle:
- * - Full Screen wrapper with gradient mesh + blob accents
- * - Form sitting in elevated GlassCard
- * - Sleek segmented role selector
+ * Premium "Hero Image + Docked Bottom Sheet" design:
+ * - Full-screen clinical photographic background with dark cinematic gradient
+ * - Top hero section with brand icon and "Create Account" header
+ * - Crisp white card anchored firmly at the very bottom edge of the screen
+ * - Pill-shaped segmented role selector
  * - Preserved logic: validation, API call, token/auth persistence, routing to consent
  */
 
@@ -18,11 +19,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Link, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { TypographyScale, Spacing, Radius } from '@/constants/theme';
-import { Screen } from '@/components/ui/Screen';
-import { GlassCard } from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import TextField from '@/components/ui/TextField';
 import { register } from '@/services/authApi';
@@ -31,7 +34,8 @@ import { useAuthStore } from '@/store/authStore';
 type Role = 'staff' | 'reviewer';
 
 export default function RegisterScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -128,8 +132,29 @@ export default function RegisterScreen() {
     }
   }
 
+  const cardBg = isDark ? colors.surface : '#FFFFFF';
+
   return (
-    <Screen safeArea={false}>
+    <View style={styles.root}>
+      {/* Full-bleed clinical background image */}
+      <Image
+        source={require('../../../assets/images/clinical-hero.jpg')}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+      />
+
+      {/* Dark moody gradient overlay for cinematic contrast */}
+      <LinearGradient
+        colors={[
+          'rgba(4, 16, 26, 0.45)',
+          'rgba(6, 28, 44, 0.70)',
+          'rgba(4, 14, 22, 0.90)',
+        ]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -138,211 +163,321 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[TypographyScale.h1, styles.title, { color: colors.textPrimary }]}>
-              Create Account
-            </Text>
-            <Text style={[TypographyScale.body, styles.subtitle, { color: colors.textSecondary }]}>
-              Register as Healthcare Staff or Reviewer
-            </Text>
+          {/* ─── Hero Area (Top) ─── */}
+          <View style={[styles.heroArea, { paddingTop: insets.top + Spacing.md }]}>
+            {/* Logo glow halo */}
+            <Animated.View entering={FadeIn.duration(700).delay(100)} style={styles.logoGlowWrapper}>
+              <Image
+                source={require('../../../assets/images/logo-glow.png')}
+                style={styles.logoGlow}
+                contentFit="contain"
+              />
+            </Animated.View>
+
+            {/* App Icon */}
+            <Animated.View entering={FadeIn.duration(500).delay(150)} style={styles.iconWrapper}>
+              <Image
+                source={require('../../../assets/images/icon.png')}
+                style={styles.appIcon}
+                contentFit="contain"
+              />
+            </Animated.View>
+
+            {/* Hero Title */}
+            <Animated.View entering={FadeInUp.duration(500).delay(250)}>
+              <Text style={styles.heroTitle}>Create Account</Text>
+            </Animated.View>
+            <Animated.View entering={FadeInUp.duration(500).delay(350)}>
+              <Text style={styles.heroSubtitle}>
+                Join as Healthcare Staff or Reviewer
+              </Text>
+            </Animated.View>
           </View>
 
-          {/* Form in Glass Card */}
-          <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.card}>
-            <View style={styles.cardInner}>
-              {apiError ? (
-                <View
-                  style={[
-                    styles.errorBanner,
-                    {
-                      backgroundColor: `${colors.danger}15`,
-                      borderColor: `${colors.danger}35`,
-                    },
-                  ]}
-                >
-                  <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
-                    {apiError}
-                  </Text>
-                </View>
-              ) : null}
+          {/* ─── White Bottom Sheet Card (Anchored at very bottom) ─── */}
+          <Animated.View
+            entering={FadeInUp.duration(600).delay(250)}
+            style={[
+              styles.bottomSheetCard,
+              {
+                backgroundColor: cardBg,
+                paddingBottom: Math.max(insets.bottom + Spacing.md, Spacing.xl),
+              },
+            ]}
+          >
+            {/* Card pull-handle */}
+            <View style={styles.handleRow}>
+              <View style={[styles.handle, { backgroundColor: isDark ? colors.border : '#E2E8F0' }]} />
+            </View>
 
-              <TextField
-                label="Full Name"
-                placeholder="Dr. Amara Silva"
-                autoCapitalize="words"
-                autoComplete="name"
-                value={fullName}
-                onChangeText={(text) => {
-                  setFullName(text);
-                  clearFieldError('fullName');
-                }}
-                error={errors.fullName}
-              />
-
-              <TextField
-                label="Email"
-                placeholder="amara@clinic.lk"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  clearFieldError('email');
-                }}
-                error={errors.email}
-              />
-
-              <TextField
-                label="Password"
-                placeholder="Minimum 8 characters"
-                secureTextEntry
-                autoComplete="new-password"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  clearFieldError('password');
-                }}
-                error={errors.password}
-              />
-
-              <TextField
-                label="Confirm Password"
-                placeholder="Re-enter password"
-                secureTextEntry
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  clearFieldError('confirmPassword');
-                }}
-                error={errors.confirmPassword}
-              />
-
-              {/* Role selector — segmented control */}
-              <Text style={[TypographyScale.caption, styles.fieldLabel, { color: colors.textSecondary }]}>
-                Role
-              </Text>
+            {/* Error Banner */}
+            {apiError ? (
               <View
                 style={[
-                  styles.roleSelector,
+                  styles.errorBanner,
                   {
-                    backgroundColor: colors.surfaceSunken,
-                    borderColor: colors.border,
+                    backgroundColor: `${colors.danger}12`,
+                    borderColor: `${colors.danger}30`,
                   },
                 ]}
               >
-                <TouchableOpacity
-                  style={[
-                    styles.roleOption,
-                    role === 'staff' && {
-                      backgroundColor: colors.primary,
-                      borderRadius: Radius.md - 2,
-                    },
-                  ]}
-                  onPress={() => setRole('staff')}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      TypographyScale.button,
-                      {
-                        color: role === 'staff' ? colors.textOnPrimary : colors.textSecondary,
-                        fontSize: 13,
-                      },
-                    ]}
-                  >
-                    Healthcare Staff
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.roleOption,
-                    role === 'reviewer' && {
-                      backgroundColor: colors.primary,
-                      borderRadius: Radius.md - 2,
-                    },
-                  ]}
-                  onPress={() => setRole('reviewer')}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      TypographyScale.button,
-                      {
-                        color: role === 'reviewer' ? colors.textOnPrimary : colors.textSecondary,
-                        fontSize: 13,
-                      },
-                    ]}
-                  >
-                    Reviewer
-                  </Text>
-                </TouchableOpacity>
+                <Text style={[TypographyScale.caption, { color: colors.danger, fontWeight: '600' }]}>
+                  {apiError}
+                </Text>
               </View>
+            ) : null}
 
-              <TextField
-                label="Facility Name"
-                placeholder="Negombo Base Hospital"
-                autoCapitalize="words"
-                value={facilityName}
-                onChangeText={(text) => {
-                  setFacilityName(text);
-                  clearFieldError('facilityName');
-                }}
-                error={errors.facilityName}
-              />
+            {/* Form Fields */}
+            <TextField
+              label="Full Name"
+              placeholder="Dr. Amara Silva"
+              autoCapitalize="words"
+              autoComplete="name"
+              value={fullName}
+              onChangeText={(text) => {
+                setFullName(text);
+                clearFieldError('fullName');
+              }}
+              error={errors.fullName}
+            />
 
-              <Button
-                title="Register"
-                onPress={handleRegister}
-                loading={isLoading}
-                disabled={isLoading}
-                style={styles.registerButton}
-              />
-            </View>
-          </GlassCard>
+            <TextField
+              label="Email"
+              placeholder="amara@clinic.lk"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                clearFieldError('email');
+              }}
+              error={errors.email}
+            />
 
-          {/* Footer Link */}
-          <View style={styles.footer}>
-            <Text style={[TypographyScale.body, { color: colors.textSecondary }]}>
-              Already have an account?{' '}
+            <TextField
+              label="Password"
+              placeholder="Minimum 8 characters"
+              secureTextEntry
+              autoComplete="new-password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                clearFieldError('password');
+              }}
+              error={errors.password}
+            />
+
+            <TextField
+              label="Confirm Password"
+              placeholder="Re-enter password"
+              secureTextEntry
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                clearFieldError('confirmPassword');
+              }}
+              error={errors.confirmPassword}
+            />
+
+            {/* Role selector — pill style */}
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+              Role
             </Text>
-            <Link href="/(auth)/login" style={[styles.link, { color: colors.primaryLight }]}>
-              Sign In
-            </Link>
-          </View>
+            <View
+              style={[
+                styles.roleSelector,
+                {
+                  backgroundColor: isDark ? colors.surfaceSunken : '#F0F4F7',
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.roleOption,
+                  role === 'staff' && [
+                    styles.roleOptionActive,
+                    {
+                      backgroundColor: colors.primary,
+                    },
+                  ],
+                ]}
+                onPress={() => setRole('staff')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.roleOptionText,
+                    {
+                      color: role === 'staff' ? '#FFFFFF' : colors.textSecondary,
+                      fontWeight: role === 'staff' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Healthcare Staff
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.roleOption,
+                  role === 'reviewer' && [
+                    styles.roleOptionActive,
+                    {
+                      backgroundColor: colors.primary,
+                    },
+                  ],
+                ]}
+                onPress={() => setRole('reviewer')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.roleOptionText,
+                    {
+                      color: role === 'reviewer' ? '#FFFFFF' : colors.textSecondary,
+                      fontWeight: role === 'reviewer' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Reviewer
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextField
+              label="Facility Name"
+              placeholder="Negombo Base Hospital"
+              autoCapitalize="words"
+              value={facilityName}
+              onChangeText={(text) => {
+                setFacilityName(text);
+                clearFieldError('facilityName');
+              }}
+              error={errors.facilityName}
+            />
+
+            {/* Submit Button */}
+            <Button
+              title="Create Account"
+              onPress={handleRegister}
+              loading={isLoading}
+              disabled={isLoading}
+              style={styles.registerButton}
+            />
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
+              <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
+            </View>
+
+            {/* Sign In Footer Link */}
+            <View style={styles.footerRow}>
+              <Text style={[TypographyScale.body, { color: colors.textSecondary }]}>
+                Already have an account?{' '}
+              </Text>
+              <Link href="/(auth)/login" style={[styles.footerLink, { color: colors.primary }]}>
+                Sign In
+              </Link>
+            </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#061C2C',
+  },
   flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
+    justifyContent: 'space-between',
   },
-  header: {
-    marginBottom: Spacing.lg,
+
+  /* ── Hero Area ── */
+  heroArea: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: Spacing.md,
+    minHeight: 160,
   },
-  title: {
-    marginBottom: Spacing.xxs,
+  logoGlowWrapper: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    opacity: 0.25,
   },
-  subtitle: {
+  logoGlow: {
+    width: '100%',
+    height: '100%',
+  },
+  iconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: Spacing.xs,
+    shadowColor: '#4FD1E0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.6,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  appIcon: {
+    width: '100%',
+    height: '100%',
+  },
+  heroTitle: {
+    fontFamily: TypographyScale.h1.fontFamily,
+    fontSize: 26,
+    lineHeight: 32,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
-  card: {
-    marginBottom: Spacing.lg,
+  heroSubtitle: {
+    fontFamily: TypographyScale.body.fontFamily,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255, 255, 255, 0.70)',
+    marginTop: 2,
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  cardInner: {
-    padding: Spacing.lg,
+
+  /* ── Bottom Sheet Card ── */
+  bottomSheetCard: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  handleRow: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  handle: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
   },
   errorBanner: {
     borderWidth: 1,
@@ -351,14 +486,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   fieldLabel: {
-    marginBottom: Spacing.xxs,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontSize: TypographyScale.caption.fontSize,
+    lineHeight: TypographyScale.caption.lineHeight,
     fontWeight: '600',
+    marginBottom: Spacing.xs,
   },
   roleSelector: {
     flexDirection: 'row',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: 3,
+    borderRadius: Radius.pill,
+    padding: 4,
     marginBottom: Spacing.md,
   },
   roleOption: {
@@ -367,19 +504,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
+    borderRadius: Radius.pill,
+  },
+  roleOptionActive: {
+    shadowColor: 'rgba(15, 76, 92, 0.35)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  roleOptionText: {
+    fontFamily: TypographyScale.button.fontFamily,
+    fontSize: 13,
+    lineHeight: 18,
   },
   registerButton: {
     marginTop: Spacing.xs,
   },
-  footer: {
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontSize: 12,
+    textTransform: 'lowercase',
+  },
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
   },
-  link: {
+  footerLink: {
     fontFamily: TypographyScale.button.fontFamily,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
