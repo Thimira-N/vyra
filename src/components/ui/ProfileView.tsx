@@ -358,7 +358,7 @@ export default function ProfileView() {
             VYRA CLINICAL AI PLATFORM
           </Text>
           <Text style={[styles.footerVersion, { color: colors.textTertiary }]}>
-            Version {appVersion} · Build 2026.08 · Secure Health Network
+            Version {appVersion} · Build 2026 · Developed by: Thimira Navodana
           </Text>
         </View>
       </ScrollView>

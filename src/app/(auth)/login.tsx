@@ -138,15 +138,6 @@ export default function LoginScreen() {
         >
           {/* ─── Hero Area (Top) ─── */}
           <View style={[styles.heroArea, { paddingTop: insets.top + Spacing.lg }]}>
-            {/* Logo glow halo */}
-            <Animated.View entering={FadeIn.duration(800).delay(100)} style={styles.logoGlowWrapper}>
-              <Image
-                source={require('../../../assets/images/logo-glow.png')}
-                style={styles.logoGlow}
-                contentFit="contain"
-              />
-            </Animated.View>
-
             {/* App Icon */}
             <Animated.View entering={FadeIn.duration(600).delay(200)} style={styles.iconWrapper}>
               <Image
@@ -301,27 +292,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
     minHeight: 200,
   },
-  logoGlowWrapper: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-  },
-  logoGlow: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.30,
-  },
   iconWrapper: {
-    width: 68,
-    height: 68,
-    borderRadius: 18,
-    overflow: 'hidden',
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
-    shadowColor: '#4FD1E0',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
   },
   appIcon: {
     width: '100%',

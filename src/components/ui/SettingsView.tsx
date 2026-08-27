@@ -44,7 +44,7 @@ interface SettingsViewProps {
 }
 
 export default function SettingsView({ role }: SettingsViewProps) {
-  const { colors, mode, setMode, reduceMotion, setReduceMotion, glassIntensity, setGlassIntensity } = useTheme();
+  const { colors, isDark, mode, setMode, reduceMotion, setReduceMotion, glassIntensity, setGlassIntensity } = useTheme();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
@@ -94,6 +94,21 @@ export default function SettingsView({ role }: SettingsViewProps) {
     NotificationService.notify('info', `${feature} — Coming Soon`, description);
   }
 
+  // High-contrast toggle switch colors (crisply visible in dark & light modes)
+  const switchTrackColor = {
+    false: isDark ? 'rgba(255, 255, 255, 0.22)' : '#CBD5E1',
+    true: colors.primary,
+  };
+  const getSwitchThumbColor = (val: boolean) =>
+    Platform.OS === 'android'
+      ? val
+        ? '#FFFFFF'
+        : isDark
+        ? '#E2E8F0'
+        : '#FFFFFF'
+      : '#FFFFFF';
+  const switchIosBg = isDark ? 'rgba(255, 255, 255, 0.22)' : '#CBD5E1';
+
   return (
     <Screen safeArea={true}>
       <ScrollView
@@ -105,25 +120,47 @@ export default function SettingsView({ role }: SettingsViewProps) {
           Settings
         </Text>
 
-        {/* 1. ACCOUNT */}
+        {/* 1. ACCOUNT & ROLE */}
         <View style={styles.section}>
           <Text style={[TypographyScale.caption, styles.sectionHeader, { color: colors.textSecondary }]}>
-            ACCOUNT
+            ACCOUNT & ROLE
           </Text>
-          <GlassCard tint="elevated" elevation="raised" radius="md">
+          <GlassCard tint="default" elevation="raised" radius="md">
             <View style={styles.cardInner}>
               <View style={styles.summaryRow}>
                 <View>
-                  <Text style={[TypographyScale.body, { color: colors.textPrimary, fontWeight: '700' }]}>
-                    {user?.full_name || 'User'}
+                  <Text style={[TypographyScale.h3, { color: colors.textPrimary }]}>
+                    {user?.full_name || 'Clinician'}
                   </Text>
                   <Text style={[TypographyScale.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                    {user?.email} · {user?.facility_name}
+                    {user?.email || 'clinician@vyra.health'}
                   </Text>
                 </View>
-                <View style={[styles.rolePill, { backgroundColor: `${colors.primary}18` }]}>
-                  <Text style={[TypographyScale.caption, { color: colors.primaryLight, fontWeight: '700', fontSize: 11 }]}>
-                    {effectiveRole === 'reviewer' ? 'REVIEWER' : 'STAFF'}
+                <View
+                  style={[
+                    styles.rolePill,
+                    {
+                      backgroundColor:
+                        effectiveRole === 'reviewer'
+                          ? `${colors.primaryLight}20`
+                          : `${colors.primary}20`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      TypographyScale.caption,
+                      {
+                        color:
+                          effectiveRole === 'reviewer'
+                            ? colors.primaryLight
+                            : colors.primary,
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                      },
+                    ]}
+                  >
+                    {effectiveRole}
                   </Text>
                 </View>
               </View>
@@ -175,31 +212,35 @@ export default function SettingsView({ role }: SettingsViewProps) {
                 <Text style={[TypographyScale.bodySm, { color: colors.textPrimary, fontWeight: '600', marginBottom: Spacing.xs }]}>
                   Theme
                 </Text>
-                <View style={[styles.segmentedRow, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
-                  {(['system', 'light', 'dark'] as ThemeMode[]).map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      style={[
-                        styles.segmentOption,
-                        mode === t && { backgroundColor: colors.primary, borderRadius: Radius.sm },
-                      ]}
-                      onPress={() => setMode(t)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
+                <View style={[styles.segmentedRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.surfaceSunken, borderColor: colors.border }]}>
+                  {(['system', 'light', 'dark'] as ThemeMode[]).map((t) => {
+                    const isSelected = mode === t;
+                    return (
+                      <TouchableOpacity
+                        key={t}
                         style={[
-                          TypographyScale.button,
-                          {
-                            color: mode === t ? colors.textOnPrimary : colors.textSecondary,
-                            fontSize: 13,
-                            textTransform: 'capitalize',
-                          },
+                          styles.segmentOption,
+                          isSelected && { backgroundColor: colors.primary, borderRadius: Radius.sm },
                         ]}
+                        onPress={() => setMode(t)}
+                        activeOpacity={0.7}
                       >
-                        {t}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            TypographyScale.button,
+                            {
+                              color: isSelected ? colors.textOnPrimary : isDark ? 'rgba(255, 255, 255, 0.75)' : colors.textSecondary,
+                              fontFamily: isSelected ? 'Inter_700Bold' : 'Inter_500Medium',
+                              fontSize: 13,
+                              textTransform: 'capitalize',
+                            },
+                          ]}
+                        >
+                          {t}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -218,8 +259,9 @@ export default function SettingsView({ role }: SettingsViewProps) {
                 <Switch
                   value={reduceMotion}
                   onValueChange={setReduceMotion}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={colors.surface}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(reduceMotion)}
+                  ios_backgroundColor={switchIosBg}
                 />
               </View>
 
@@ -235,31 +277,35 @@ export default function SettingsView({ role }: SettingsViewProps) {
                     Escape hatch for blur sensitivity or low-power devices
                   </Text>
                 </View>
-                <View style={[styles.segmentedRow, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
-                  {(['full', 'reduced', 'off'] as GlassIntensity[]).map((gi) => (
-                    <TouchableOpacity
-                      key={gi}
-                      style={[
-                        styles.segmentOption,
-                        glassIntensity === gi && { backgroundColor: colors.primary, borderRadius: Radius.sm },
-                      ]}
-                      onPress={() => setGlassIntensity(gi)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
+                <View style={[styles.segmentedRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.surfaceSunken, borderColor: colors.border }]}>
+                  {(['full', 'reduced', 'off'] as GlassIntensity[]).map((gi) => {
+                    const isSelected = glassIntensity === gi;
+                    return (
+                      <TouchableOpacity
+                        key={gi}
                         style={[
-                          TypographyScale.button,
-                          {
-                            color: glassIntensity === gi ? colors.textOnPrimary : colors.textSecondary,
-                            fontSize: 13,
-                            textTransform: 'capitalize',
-                          },
+                          styles.segmentOption,
+                          isSelected && { backgroundColor: colors.primary, borderRadius: Radius.sm },
                         ]}
+                        onPress={() => setGlassIntensity(gi)}
+                        activeOpacity={0.7}
                       >
-                        {gi}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            TypographyScale.button,
+                            {
+                              color: isSelected ? colors.textOnPrimary : isDark ? 'rgba(255, 255, 255, 0.75)' : colors.textSecondary,
+                              fontFamily: isSelected ? 'Inter_700Bold' : 'Inter_500Medium',
+                              fontSize: 13,
+                              textTransform: 'capitalize',
+                            },
+                          ]}
+                        >
+                          {gi}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             </View>
@@ -285,8 +331,9 @@ export default function SettingsView({ role }: SettingsViewProps) {
                 <Switch
                   value={notificationPrefs.pushEnabled}
                   onValueChange={(val) => setNotificationPrefs({ pushEnabled: val })}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={colors.surface}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(notificationPrefs.pushEnabled)}
+                  ios_backgroundColor={switchIosBg}
                 />
               </View>
 
@@ -307,8 +354,9 @@ export default function SettingsView({ role }: SettingsViewProps) {
                       <Switch
                         value={notificationPrefs.newCaseAssigned}
                         onValueChange={(val) => setNotificationPrefs({ newCaseAssigned: val })}
-                        trackColor={{ false: colors.border, true: colors.primary }}
-                        thumbColor={colors.surface}
+                        trackColor={switchTrackColor}
+                        thumbColor={getSwitchThumbColor(notificationPrefs.newCaseAssigned)}
+                        ios_backgroundColor={switchIosBg}
                       />
                     </View>
                   ) : (
@@ -324,8 +372,9 @@ export default function SettingsView({ role }: SettingsViewProps) {
                       <Switch
                         value={notificationPrefs.assessmentReviewed}
                         onValueChange={(val) => setNotificationPrefs({ assessmentReviewed: val })}
-                        trackColor={{ false: colors.border, true: colors.primary }}
-                        thumbColor={colors.surface}
+                        trackColor={switchTrackColor}
+                        thumbColor={getSwitchThumbColor(notificationPrefs.assessmentReviewed)}
+                        ios_backgroundColor={switchIosBg}
                       />
                     </View>
                   )}
@@ -344,8 +393,9 @@ export default function SettingsView({ role }: SettingsViewProps) {
                     <Switch
                       value={notificationPrefs.systemAnnouncements}
                       onValueChange={(val) => setNotificationPrefs({ systemAnnouncements: val })}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={colors.surface}
+                      trackColor={switchTrackColor}
+                      thumbColor={getSwitchThumbColor(notificationPrefs.systemAnnouncements)}
+                      ios_backgroundColor={switchIosBg}
                     />
                   </View>
                 </>

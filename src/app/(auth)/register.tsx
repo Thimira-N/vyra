@@ -167,15 +167,6 @@ export default function RegisterScreen() {
         >
           {/* ─── Hero Area (Top) ─── */}
           <View style={[styles.heroArea, { paddingTop: insets.top + Spacing.md }]}>
-            {/* Logo glow halo */}
-            <Animated.View entering={FadeIn.duration(700).delay(100)} style={styles.logoGlowWrapper}>
-              <Image
-                source={require('../../../assets/images/logo-glow.png')}
-                style={styles.logoGlow}
-                contentFit="contain"
-              />
-            </Animated.View>
-
             {/* App Icon */}
             <Animated.View entering={FadeIn.duration(500).delay(150)} style={styles.iconWrapper}>
               <Image
@@ -411,27 +402,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
     minHeight: 160,
   },
-  logoGlowWrapper: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-  },
-  logoGlow: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.25,
-  },
   iconWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    overflow: 'hidden',
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.xs,
-    shadowColor: '#4FD1E0',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 10,
   },
   appIcon: {
     width: '100%',
