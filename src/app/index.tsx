@@ -1,12 +1,12 @@
 /**
- * Splash / Redirect — app/index.tsx
+ * Splash & Launch Screen — app/index.tsx
  *
- * Spec §6.1: Checks expo-secure-store for a saved JWT.
- *   - If valid → GET /auth/me → decode role → redirect to (staff)/home or (reviewer)/dashboard
- *   - If consent_accepted_at is null → redirect to consent first
- *   - If none/expired → redirect to (auth)/login
- *
- * UI: Full-bleed clinical photography background with dark gradient overlay and animated brand.
+ * Minimal, Ultra-Premium Clinical Brand Reveal:
+ * - Pure deep OLED slate backdrop with subtle atmospheric vignette
+ * - Clean floating brand icon (zero blue shade, no clutter)
+ * - Restrained typography with precision tracking
+ * - Delicate, whisper-quiet pulsing indicator
+ * - Seamless auth check and role-based transition
  */
 
 import React, { useEffect } from 'react';
@@ -14,130 +14,170 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  withRepeat,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import { useTheme } from '@/hooks/use-theme';
-import { TypographyScale, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 export default function SplashRedirectScreen() {
-  const { colors, isDark } = useTheme();
+  // Shared Animation Values
+  const iconOpacity = useSharedValue(0);
+  const iconScale = useSharedValue(0.92);
+  const textOpacity = useSharedValue(0);
+  const textTranslateY = useSharedValue(8);
+  const indicatorOpacity = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
 
   useEffect(() => {
-    async function initialize() {
-      // Health check — connectivity verification
-      try {
-        const response = await api.get('/health');
-        console.log('[Vyra] ✅ Backend health check:', JSON.stringify(response.data));
-      } catch (error: any) {
-        console.error('[Vyra] ❌ Backend health check failed:', error?.message || error);
-      }
+    // 1. Icon entrance: silky smooth fade + subtle scale
+    iconOpacity.value = withTiming(1, {
+      duration: 700,
+      easing: Easing.out(Easing.cubic),
+    });
+    iconScale.value = withTiming(1, {
+      duration: 700,
+      easing: Easing.out(Easing.cubic),
+    });
 
-      // Try to restore auth from SecureStore
-      const user = await useAuthStore.getState().loadToken();
+    // 2. Text entrance: staggered fade + slight upward drift
+    textOpacity.value = withDelay(
+      220,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) })
+    );
+    textTranslateY.value = withDelay(
+      220,
+      withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) })
+    );
+
+    // 3. Subtle bottom indicator pulse
+    indicatorOpacity.value = withDelay(
+      450,
+      withTiming(1, { duration: 500 })
+    );
+    pulseScale.value = withDelay(
+      450,
+      withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.94, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      )
+    );
+  }, []);
+
+  // Auth restoration & navigation
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initialize() {
+      const minDisplayPromise = new Promise((res) => setTimeout(res, 1600));
+
+      // Health ping (silent fallback)
+      const healthPromise = api.get('/health').catch(() => null);
+
+      // Restore user token
+      const authPromise = useAuthStore.getState().loadToken();
+
+      // Check if user has completed first-time onboarding
+      const onboardingPromise = SecureStore.getItemAsync('vyra_has_seen_onboarding').catch(() => null);
+
+      const [, , user, hasSeenOnboarding] = await Promise.all([
+        minDisplayPromise,
+        healthPromise,
+        authPromise,
+        onboardingPromise,
+      ]);
+
+      if (!isMounted) return;
 
       if (user) {
-        // Token valid, user profile loaded
         if (!user.consent_accepted_at) {
-          // User hasn't accepted consent yet
           router.replace('/(auth)/consent');
         } else if (user.role === 'reviewer') {
           router.replace('/(reviewer)/dashboard');
         } else {
           router.replace('/(staff)/home');
         }
+      } else if (!hasSeenOnboarding) {
+        router.replace('/(auth)/get-started');
       } else {
-        // No valid token — go to login
         router.replace('/(auth)/login');
       }
     }
 
     initialize();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Animated Styles
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    opacity: iconOpacity.value,
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  const animatedTextStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+    transform: [{ translateY: textTranslateY.value }],
+  }));
+
+  const animatedIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: indicatorOpacity.value,
+    transform: [{ scale: pulseScale.value }],
+  }));
 
   return (
     <View style={styles.root}>
-      {/* Full-bleed clinical background image */}
-      <Image
-        source={require('../../assets/images/clinical-hero.jpg')}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-      />
-
-      {/* Dark moody gradient overlay for cinematic contrast */}
+      {/* ─── Ultra-Subtle Deep Vignette ─── */}
       <LinearGradient
-        colors={[
-          'rgba(4, 16, 26, 0.70)',
-          'rgba(6, 28, 44, 0.85)',
-          'rgba(4, 14, 22, 0.95)',
-        ]}
+        colors={['#080E18', '#050910', '#03060B']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
       />
 
-      {/* Decorative subtle ambient luminous glow */}
-      <View style={styles.blobLayer} pointerEvents="none">
-        <View
-          style={[
-            styles.blob,
-            styles.blobTop,
-            {
-              backgroundColor: 'rgba(29, 122, 140, 0.25)',
-              ...(Platform.OS === 'web' ? { filter: 'blur(80px)' } : {}),
-            },
-          ]}
-        />
-      </View>
-
-      {/* Center Brand Container */}
+      {/* ─── Minimal Center Brand Group ─── */}
       <View style={styles.centerContainer}>
-        {/* Glow halo */}
-        <Animated.View entering={FadeIn.duration(800).delay(100)} style={styles.logoGlowWrapper}>
-          <Image
-            source={require('../../assets/images/logo-glow.png')}
-            style={styles.logoGlow}
-            contentFit="contain"
-          />
-        </Animated.View>
-
-        {/* App Icon */}
-        <Animated.View entering={FadeIn.duration(600).delay(250)} style={styles.iconWrapper}>
+        {/* Crisp App Icon (Zero Blue Glow) */}
+        <Animated.View style={[styles.iconWrapper, animatedIconStyle]}>
           <Image
             source={require('../../assets/images/icon.png')}
-            style={styles.appIcon}
-            contentFit="contain"
+            style={styles.brandIcon}
+            contentFit="cover"
           />
         </Animated.View>
 
-        {/* Brand Name */}
-        <Animated.View entering={FadeInUp.duration(600).delay(450)}>
-          <Text style={styles.brandName}>Vyra</Text>
-        </Animated.View>
-
-        {/* Tagline */}
-        <Animated.View entering={FadeInUp.duration(600).delay(600)}>
-          <Text style={styles.tagline}>Clinical Risk Stratification</Text>
-        </Animated.View>
-
-        {/* Spinner */}
-        <Animated.View entering={FadeIn.duration(500).delay(850)} style={styles.spinnerWrapper}>
-          <ActivityIndicator size="large" color="#4FD1E0" />
+        {/* Brand Typography */}
+        <Animated.View style={[styles.textGroup, animatedTextStyle]}>
+          <Text style={styles.brandTitle}>Vyra</Text>
+          <Text style={styles.brandSubtitle}>Clinical Risk Stratification</Text>
         </Animated.View>
       </View>
 
-      {/* Footer */}
-      <Animated.View entering={FadeIn.duration(500).delay(1000)} style={styles.footer}>
-        <Text style={styles.footerText}>
-          Multimodal Deep Learning-Based{'\n'}Early Risk Stratification System
-        </Text>
-      </Animated.View>
+      {/* ─── Minimal Ambient Bottom Pulse Dot ─── */}
+      <View style={styles.footerContainer}>
+        <Animated.View style={[styles.pulseTrack, animatedIndicatorStyle]}>
+          <View style={styles.pulseDot} />
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -145,92 +185,76 @@ export default function SplashRedirectScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#061C2C',
-    overflow: 'hidden',
-  },
-  blobLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  blobTop: {
-    top: '20%',
-    left: '20%',
-    width: 300,
-    height: 300,
+    backgroundColor: '#050910',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  logoGlowWrapper: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-  },
-  logoGlow: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.35,
+    justifyContent: 'center',
   },
   iconWrapper: {
-    width: 92,
-    height: 92,
-    borderRadius: 24,
+    width: 86,
+    height: 86,
+    borderRadius: 22,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     marginBottom: Spacing.lg,
-    shadowColor: '#4FD1E0',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
-    shadowRadius: 28,
-    elevation: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.45,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  appIcon: {
+  brandIcon: {
     width: '100%',
     height: '100%',
   },
-  brandName: {
-    fontFamily: TypographyScale.display.fontFamily,
-    fontSize: 48,
-    lineHeight: 56,
-    color: '#FFFFFF',
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  tagline: {
-    fontFamily: TypographyScale.bodyLg.fontFamily,
-    fontSize: TypographyScale.bodyLg.fontSize,
-    lineHeight: TypographyScale.bodyLg.lineHeight,
-    color: 'rgba(255, 255, 255, 0.70)',
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-    letterSpacing: 0.5,
-  },
-  spinnerWrapper: {
-    marginTop: Spacing.xxl,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: Spacing.xxl,
-    left: 0,
-    right: 0,
+  textGroup: {
     alignItems: 'center',
   },
-  footerText: {
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontSize: TypographyScale.caption.fontSize,
+  brandTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 34,
+    lineHeight: 40,
+    color: '#FFFFFF',
+    letterSpacing: -0.6,
+  },
+  brandSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13.5,
     lineHeight: 18,
-    color: 'rgba(255, 255, 255, 0.40)',
-    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.50)',
+    marginTop: 4,
     letterSpacing: 0.3,
   },
+  footerContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 44 : 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseTrack: {
+    width: 24,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseDot: {
+    width: 8,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.40)',
+  },
 });
+
+

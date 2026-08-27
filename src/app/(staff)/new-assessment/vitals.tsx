@@ -32,14 +32,6 @@ export default function VitalsScreen() {
   const [error, setError] = useState('');
 
   function handleNext() {
-    const coreKeys = ['HR', 'O2Sat', 'Temp', 'SBP', 'DBP', 'Resp'];
-    const hasAnyCoreVital = coreKeys.some((k) => vitals[k] !== undefined);
-
-    if (!hasAnyCoreVital) {
-      setError('Please enter at least one vital sign measurement to proceed.');
-      return;
-    }
-
     setVitalsStore(vitals);
     router.push('/(staff)/new-assessment/review-submit');
   }

@@ -2,16 +2,17 @@
  * Step 2: Image Capture — Spec §6.2, UI Upgrade U4
  *
  * Premium Clinical Imaging Interface:
- * - ProgressSteps indicator at top
+ * - High-performance hardware-accelerated image rendering via expo-image
  * - Viewfinder-style image capture frame with corner reticles
- * - High-resolution preview with retake and zoom capabilities
+ * - High-resolution preview with retake and status badge
  * - Clear secondary option for partial-modality assessments
- * - Preserved logic: camera/gallery permissions, draftStore persistence, skippable option
+ * - Immediate draft store synchronization
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/hooks/use-theme';
@@ -31,24 +32,71 @@ export default function ImageCaptureScreen() {
 
   const [imageUri, setImageUri] = useState<string | null>(storedUri);
 
+  // Sync state if store updates or restores
+  React.useEffect(() => {
+    if (storedUri && storedUri !== imageUri) {
+      setImageUri(storedUri);
+    }
+  }, [storedUri]);
+
+  // Handle Android activity recreation recovery
+  React.useEffect(() => {
+    async function checkPendingCapture() {
+      try {
+        const pending: any = await ImagePicker.getPendingResultAsync();
+        if (pending && !pending.canceled && pending.assets?.[0]?.uri) {
+          const recoveredUri = pending.assets[0].uri;
+          setImageUri(recoveredUri);
+          setImage(recoveredUri);
+        }
+      } catch {
+        // Not supported or no pending result
+      }
+    }
+    checkPendingCapture();
+  }, []);
+
   async function handleTakePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
         'Camera Permission Required',
-        'Please grant camera access to take clinical photos.',
+        'Please grant camera access in your device settings to capture clinical photos.',
       );
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: false,
-    });
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+        exif: false,
+      });
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const selectedUri = result.assets[0].uri;
+        setImageUri(selectedUri);
+        setImage(selectedUri);
+      }
+    } catch (err: any) {
+      console.log('[ImagePicker Camera with crop failed, trying standard]:', err?.message);
+      try {
+        const fallback = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+          allowsEditing: false,
+          exif: false,
+        });
+        if (!fallback.canceled && fallback.assets?.[0]?.uri) {
+          const selectedUri = fallback.assets[0].uri;
+          setImageUri(selectedUri);
+          setImage(selectedUri);
+        }
+      } catch (fallbackErr: any) {
+        Alert.alert('Camera Error', 'Could not open the camera. Please select an image from your library instead.');
+      }
     }
   }
 
@@ -62,19 +110,27 @@ export default function ImageCaptureScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: false,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: false,
+        exif: false,
+      });
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const selectedUri = result.assets[0].uri;
+        setImageUri(selectedUri);
+        setImage(selectedUri);
+      }
+    } catch (err: any) {
+      console.log('[ImagePicker Gallery Error]:', err?.message);
     }
   }
 
   function handleRetake() {
     setImageUri(null);
+    setImage(null);
   }
 
   function handleNext() {
@@ -107,24 +163,58 @@ export default function ImageCaptureScreen() {
           {imageUri ? (
             <GlassCard tint="elevated" elevation="raised" radius="lg" style={styles.previewCard}>
               <View style={styles.previewCardInner}>
-                <View style={styles.imageWrapper}>
+                <View style={[styles.imageWrapper, { backgroundColor: isDark ? '#050D14' : '#0B161E' }]}>
                   <Image
                     source={{ uri: imageUri }}
-                    style={[styles.preview, { backgroundColor: colors.surfaceSunken }]}
-                    resizeMode="cover"
+                    style={styles.preview}
+                    contentFit="cover"
+                    priority="high"
+                    transition={250}
                   />
+
+                  {/* Top Status Capsule */}
                   <View style={styles.imageOverlayBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                    <Text style={styles.imageOverlayText}>Optical Data Loaded</Text>
+                    <View style={styles.greenBeaconDot} />
+                    <Text style={styles.imageOverlayText}>OPTICAL DATA LOADED</Text>
                   </View>
                 </View>
 
-                <Button
-                  title="Retake / Choose Different"
-                  onPress={handleRetake}
-                  variant="outline"
-                  style={{ marginTop: Spacing.sm }}
-                />
+                {/* Retake & Action Buttons */}
+                <View style={styles.previewActionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.retakeBtn,
+                      {
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F0F5F7',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : colors.borderStrong,
+                      },
+                    ]}
+                    onPress={handleChooseGallery}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="images-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.retakeBtnText, { color: colors.textPrimary }]}>
+                      Change Photo
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.retakeBtn,
+                      {
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F0F5F7',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : colors.borderStrong,
+                      },
+                    ]}
+                    onPress={handleTakePhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="camera-outline" size={18} color={colors.textPrimary} />
+                    <Text style={[styles.retakeBtnText, { color: colors.textPrimary }]}>
+                      Retake
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </GlassCard>
           ) : (
@@ -239,30 +329,72 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: 'relative',
+    width: '100%',
+    height: 290,
     borderRadius: Radius.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   preview: {
     width: '100%',
-    height: 280,
-    borderRadius: Radius.md,
+    height: '100%',
   },
   imageOverlayBadge: {
     position: 'absolute',
-    bottom: 12,
+    top: 12,
     left: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 76, 92, 0.85)',
+    backgroundColor: 'rgba(7, 18, 26, 0.85)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.pill,
-    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    gap: 6,
+  },
+  greenBeaconDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2E9E5B',
   },
   imageOverlayText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  previewActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  retakeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    gap: 6,
+  },
+  retakeBtnText: {
+    fontSize: 13.5,
+    fontFamily: 'Inter_600SemiBold',
   },
 
   /* ── Capture Viewfinder ── */

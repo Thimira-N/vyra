@@ -17,6 +17,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
       "predictiveBackGestureEnabled": false,
       "package": "com.thimira_n.vyra"
     },
@@ -33,9 +39,16 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#050B14",
+          "image": "./assets/images/icon.png",
+          "imageWidth": 80
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Vyra to access your photos for clinical analysis.",
+          "cameraPermission": "Allow Vyra to access your camera to capture clinical images."
         }
       ],
       "expo-sharing"

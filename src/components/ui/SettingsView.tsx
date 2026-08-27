@@ -36,6 +36,8 @@ import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore, type ThemeMode, type GlassIntensity } from '@/store/settingsStore';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
+import ClinicalConfirmModal from '@/components/ui/ClinicalConfirmModal';
+import { NotificationService } from '@/services/notificationService';
 
 interface SettingsViewProps {
   role?: 'staff' | 'reviewer';
@@ -53,35 +55,43 @@ export default function SettingsView({ role }: SettingsViewProps) {
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const effectiveRole = role || user?.role || 'staff';
 
-  async function handleLogout() {
-    await clearAuth();
-    router.replace('/(auth)/login');
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showClearCacheModal, setShowClearCacheModal] = useState(false);
+
+  function handleLogout() {
+    setShowLogoutModal(true);
+  }
+
+  async function handleConfirmLogout() {
+    setIsLoggingOut(true);
+    try {
+      await clearAuth();
+      setShowLogoutModal(false);
+      router.replace('/(auth)/login');
+    } catch {
+      setShowLogoutModal(false);
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   function handleClearCache() {
-    Alert.alert(
-      'Clear Local Cache',
-      'This will reset your local drafts and temporary cached data. Your submitted assessments on the server are unaffected.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear Cache',
-          style: 'destructive',
-          onPress: () => {
-            resetDraft();
-            Alert.alert('Cache Cleared', 'Local assessment drafts and temporary data have been reset.');
-          },
-        },
-      ],
+    setShowClearCacheModal(true);
+  }
+
+  function handleConfirmClearCache() {
+    resetDraft();
+    setShowClearCacheModal(false);
+    NotificationService.notify(
+      'success',
+      'Cache Cleared',
+      'Local assessment drafts and temporary data have been reset.',
     );
   }
 
   function handleComingSoon(feature: string, description: string) {
-    Alert.alert(
-      `${feature} — Coming Soon`,
-      description,
-      [{ text: 'OK' }],
-    );
+    NotificationService.notify('info', `${feature} — Coming Soon`, description);
   }
 
   return (
@@ -510,6 +520,33 @@ export default function SettingsView({ role }: SettingsViewProps) {
           style={styles.doneBtn}
         />
       </ScrollView>
+
+      {/* Clinical Sign Out Confirmation Modal */}
+      <ClinicalConfirmModal
+        visible={showLogoutModal}
+        title="Sign Out"
+        message="Are you sure you want to end your clinical triage session?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        icon="log-out-outline"
+        isLoading={isLoggingOut}
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
+      />
+
+      {/* Clear Cache Confirmation Modal */}
+      <ClinicalConfirmModal
+        visible={showClearCacheModal}
+        title="Clear Local Cache"
+        message="This will reset your local drafts and temporary cached data. Your submitted assessments on the server remain safe."
+        confirmText="Clear Cache"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        icon="trash-outline"
+        onConfirm={handleConfirmClearCache}
+        onCancel={() => setShowClearCacheModal(false)}
+      />
     </Screen>
   );
 }

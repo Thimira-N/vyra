@@ -10,7 +10,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/use-theme';
@@ -131,7 +132,8 @@ export default function ReviewSubmitScreen() {
                 <Image
                   source={{ uri: imageUri }}
                   style={[styles.imageThumbnail, { backgroundColor: colors.surfaceSunken }]}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  transition={200}
                 />
                 <View style={styles.imageBadge}>
                   <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />

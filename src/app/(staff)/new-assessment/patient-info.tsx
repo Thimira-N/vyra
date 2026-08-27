@@ -32,12 +32,14 @@ import TextField from '@/components/ui/TextField';
 import Button from '@/components/ui/Button';
 import { searchPatients, createPatient, type PatientOut } from '@/services/patientsApi';
 import { useAssessmentDraftStore } from '@/store/assessmentDraftStore';
+import { useAuthStore } from '@/store/authStore';
 import { NotificationService } from '@/services/notificationService';
 
 const STEPS = ['Patient', 'Symptoms', 'Image', 'Vitals', 'Review'];
 
 export default function PatientInfoScreen() {
   const { colors, isDark } = useTheme();
+  const currentUser = useAuthStore((s) => s.user);
 
   // Search & Recent State
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,14 +63,17 @@ export default function PatientInfoScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  // Initial load of recent patients for instant 1-tap pick
+  // Initial load of recent patients created by this logged-in account
   useEffect(() => {
     let isMounted = true;
     async function loadRecent() {
       try {
         const patients = await searchPatients('');
         if (isMounted) {
-          setRecentPatients(patients.slice(0, 6));
+          const userPatients = currentUser?._id
+            ? patients.filter((p) => p.created_by === currentUser._id)
+            : patients;
+          setRecentPatients(userPatients.slice(0, 6));
         }
       } catch {
         // Fallback silently if offline or initial fetch fails
@@ -78,7 +83,7 @@ export default function PatientInfoScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentUser?._id]);
 
   // --- Search ---
   async function handleSearch() {
@@ -90,7 +95,10 @@ export default function PatientInfoScreen() {
 
     try {
       const results = await searchPatients(searchQuery.trim());
-      setSearchResults(results);
+      const userResults = currentUser?._id
+        ? results.filter((p) => p.created_by === currentUser._id)
+        : results;
+      setSearchResults(userResults);
     } catch (error: any) {
       setSearchError(
         error?.response?.data?.detail || 'Failed to search medical records. Please try again.',
@@ -132,6 +140,7 @@ export default function PatientInfoScreen() {
         phone: newPhone.trim() || null,
       });
       setPatient(patient);
+      setRecentPatients((prev) => [patient, ...prev.filter((p) => p._id !== patient._id)].slice(0, 6));
       setShowNewForm(false);
 
       NotificationService.notify(
@@ -466,11 +475,31 @@ export default function PatientInfoScreen() {
                           No matching records found
                         </Text>
                         <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
-                          No patient matches "{searchQuery}". Register a new profile using the tab above.
+                          No patient in your account matches "{searchQuery}". Register a new profile using the tab above.
                         </Text>
                       </View>
                     </GlassCard>
-                  ) : null}
+                  ) : (
+                    <GlassCard tint="default" radius="md" style={styles.noResultsCard}>
+                      <View style={styles.noResultsInner}>
+                        <Ionicons name="folder-open-outline" size={36} color={colors.textTertiary} />
+                        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                          No recent medical records
+                        </Text>
+                        <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
+                          You have not registered any patient records on this account yet.
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.createFirstRecordBtn, { backgroundColor: colors.primary }]}
+                          onPress={() => setShowNewForm(true)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="person-add" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.createFirstRecordText}>Register First Patient</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </GlassCard>
+                  )}
                 </>
               ) : (
                 /* NEW PATIENT REGISTRATION MODE */
@@ -975,5 +1004,19 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     minHeight: 52,
+  },
+  createFirstRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: Radius.pill,
+    marginTop: Spacing.md,
+  },
+  createFirstRecordText: {
+    color: '#FFFFFF',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
   },
 });

@@ -29,6 +29,7 @@ import { Spacing, Radius } from '@/constants/theme';
 import { Screen } from '@/components/ui/Screen';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuthStore } from '@/store/authStore';
+import ClinicalConfirmModal from '@/components/ui/ClinicalConfirmModal';
 
 // Curated Clinical Persona Avatars
 const CLINICAL_PERSONAS = [
@@ -45,8 +46,10 @@ export default function ProfileView() {
   const { colors, isDark } = useTheme();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
-
   const appVersion = Constants.expoConfig?.version || '1.0.0';
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Deterministically assign initial persona based on user name/email
   const defaultPersonaIndex = useMemo(() => {
@@ -64,21 +67,20 @@ export default function ProfileView() {
   const currentPersona = CLINICAL_PERSONAS[selectedPersonaIndex] || CLINICAL_PERSONAS[0];
 
   function handleLogout() {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to end your clinical triage session?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await clearAuth();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+    setShowLogoutModal(true);
+  }
+
+  async function handleConfirmLogout() {
+    setIsLoggingOut(true);
+    try {
+      await clearAuth();
+      setShowLogoutModal(false);
+      router.replace('/(auth)/login');
+    } catch {
+      setShowLogoutModal(false);
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   function handleNavigateSettings() {
@@ -360,6 +362,20 @@ export default function ProfileView() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Clinical Sign Out Confirmation Modal */}
+      <ClinicalConfirmModal
+        visible={showLogoutModal}
+        title="Sign Out"
+        message="Are you sure you want to end your clinical triage session?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        icon="log-out-outline"
+        isLoading={isLoggingOut}
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
+      />
     </Screen>
   );
 }
