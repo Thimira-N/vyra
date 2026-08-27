@@ -22,23 +22,14 @@ function TabBarIcon({
   focused: boolean;
   name: keyof typeof Ionicons.glyphMap;
   activeName: keyof typeof Ionicons.glyphMap;
-  color?: any;
+  color: any;
 }) {
-  const { colors } = useTheme();
-
   return (
-    <View
-      style={[
-        styles.iconPill,
-        focused && { backgroundColor: `${colors.primary}1A` },
-      ]}
-    >
-      <Ionicons
-        name={focused ? activeName : name}
-        size={22}
-        color={focused ? colors.primary : color}
-      />
-    </View>
+    <Ionicons
+      name={focused ? activeName : name}
+      size={24}
+      color={color}
+    />
   );
 }
 
@@ -111,17 +102,22 @@ export default function ReviewerLayout() {
 
   return (
     <Tabs
+      safeAreaInsets={{ bottom: 0, top: 0, left: 0, right: 0 }}
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
           fontFamily: TypographyScale.caption.fontFamily,
           fontSize: 11,
-          fontWeight: '500',
+          fontWeight: '600',
+        },
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
         },
         tabBarStyle: {
           position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 24 : 16,
+          bottom: Platform.OS === 'ios' ? 28 : 20,
           left: 16,
           right: 16,
           height: 64,
@@ -198,13 +194,6 @@ export default function ReviewerLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconPill: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-  },
   highlightSheen: {
     position: 'absolute',
     top: 0,

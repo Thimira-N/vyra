@@ -123,9 +123,13 @@ function RootLayoutInner() {
   );
 }
 
+const ioniconsFont = require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf');
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
+    ionicons: ioniconsFont,
+    Ionicons: ioniconsFont,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
